@@ -1,21 +1,37 @@
-```txt
-npm install
-npm run dev
-```
+# PIII LAB — プログラミング実習Ⅲ 学習サイト
 
-```txt
-npm run deploy
-```
+## 概要
+- **目的**: プログラミング実習Ⅲの理解を最大化する。直感的な理解（メモリの可視化）を最優先し、予想・実験・課題によるアウトプットを重視。
+- **現在の単元**: B3 ポインタ（配布資料「[B3] ポインタ」・講義スライド B3.pdf 準拠）
+- 回ごとに PDF を受け取り、単元を追加していく構成。
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+## 主な機能
+- **学習用 C インタプリタ**（`public/static/js/interp.js`）: ブラウザ内で C のサブセットを実行。番地モデル（main は 100 番地〜）、型チェック、未初期化・NULL・範囲外・`&` 忘れ等を日本語で診断。複数ファイルのリンク（分割コンパイル）に対応。
+- **メモリトレーサー**（`memviz.js`）: 1 行ずつ実行し、関数ごとのデータ領域・番地・値・ポインタの矢印・変化箇所をアニメーション表示。キャプションで「何が起きたか」を説明。
+- **予想問題**: 先に出力を予想し、答え合わせ後にメモリで理由を確認。
+- **ポインタ実験室**（REPL）: 文を 1 行ずつ入力してメモリの変化を即座に観察。ミッション付き。
+- **課題ラボ**: 課題 3-1〜3-10 とオプション 2 題。CodeMirror エディタ、期待値 diff の自動判定、段階ヒント、模範解答、自分のコードのステップ実行、`.c` ダウンロード。
+- **レポート生成**: 実行結果とメモ（工夫した点・感想・考察）から B2 と同形式の `B3.txt` を生成。
+- 進捗・コード・メモは localStorage に自動保存。
 
-```txt
-npm run cf-typegen
-```
+## URL
+- `/` — 単元一覧
+- `/b3` — B3 ポインタ（`#lab` 課題ラボ, `#report` レポート, `#task-3-4` など課題直リンク）
+- `/api/units` — 単元一覧 JSON
 
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
+## 構成 / 単元の追加方法
+- `src/index.tsx` — Hono。`UNITS` に単元を登録。
+- `public/static/js/units/index.js` — ホームの単元一覧。
+- `public/static/js/units/<id>-data.js`（模範解答・配布ファイル）, `<id>-tasks.js`（課題定義）, `<id>.js`（章コンテンツ）。
+- 模範解答は gcc で検証済みのものを使用。インタプリタで全課題の模範解答が合格し、スターターが不合格になることを自動検証済み。
 
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
-```
+## データ
+- サーバ側ストレージなし（静的 + localStorage）。
+
+## デプロイ
+- Cloudflare Pages（Hono + Vite）。未デプロイ。
+- 技術: Hono / TypeScript / Vanilla JS / CodeMirror 5 (CDN) / Google Fonts
+
+## 今後
+- B4 以降の単元追加（PDF 受領後）
+- malloc/free 等の動的メモリ対応（単元に応じてインタプリタを拡張）
