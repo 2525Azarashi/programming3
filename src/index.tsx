@@ -35,7 +35,8 @@ const shell = (opts: { page: string; unit?: string; title: string; desc: string;
 ${opts.unit ? `<script src="/static/js/units/${opts.unit}-data.js"></script>
 <script src="/static/js/units/${opts.unit}-tasks.js"></script>
 ${(opts.extra ?? []).map((x) => `<script src="/static/js/units/${opts.unit}-${x}.js"></script>`).join('\n')}
-<script src="/static/js/units/${opts.unit}.js"></script>` : ''}
+<script src="/static/js/units/${opts.unit}.js"></script>
+<script src="/static/js/units/${opts.unit}-talk.js"></script>` : ''}
 <script src="/static/js/app.js"></script>
 </body>
 </html>`

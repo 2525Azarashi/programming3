@@ -123,6 +123,7 @@
   function renderUnit() {
     const U0 = window.UNITS[unitId];
     if (!U0) { app.textContent = '単元が見つかりません'; return; }
+    applyTalk(U0, (window.TALK || {})[unitId]);
     const rail = h('nav.rail', { 'aria-label': '目次' });
     const main = h('main.main');
     app.append(topbar({ crumb: unitId.toUpperCase() + ' ' + U0.title, progress: true, menu: true }), h('div.unit-wrap', rail, main));
@@ -135,6 +136,7 @@
     U0.chapters.forEach((c) => {
       const sec = h('section.chap#' + c.id, { 'aria-labelledby': c.id + '-h' },
         h('div.chap-head.rv', h('div.chap-num', c.num), h('div', h('div.chap-kicker', c.kicker), h('h2#' + c.id + '-h', c.title), c.lead ? h('p.chap-lead', c.lead) : null)));
+      if (c.talk) { const tk = h('div.blk', talk(c.talk)); tk.classList.add('rv'); sec.appendChild(tk); }
       c.blocks.forEach((b) => { const el = block(b, c); if (el) { el.classList.add('rv'); sec.appendChild(el); } });
       main.appendChild(sec);
       navItems.push({ group: c.group, id: c.id, n: c.num, t: c.navTitle || c.title });
@@ -169,6 +171,7 @@
   function block(b) {
     switch (b.type) {
       case 'prose': return h('div.prose.blk', { html: b.html });
+      case 'talk': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, talk(b.lines));
       case 'point': return h('div.blk', h('div.point', h('div.pn', 'POINT ' + b.n), h('div', h('div.pt', { html: b.title }), b.sub ? h('div.ps', { html: b.sub }) : null)));
       case 'callout': return h('div.blk', h('div.callout.' + (b.kind || 'info'), { html: b.html }));
       case 'code': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, codeBlock(b.code, { hl: b.hl }));
@@ -189,6 +192,56 @@
     }
     return null;
   }
+
+  /* ---------------- 対話 (サカイさん × リョウガさん) ---------------- */
+  /* 単元ごとの対話データ (units/<id>-talk.js) を章に重ねる
+     { chapId: { talk: [[who, html]...],            ← 章冒頭の対話 (lead の代わり)
+                 replace: { blockIndex: lines },    ← 説明文ブロックを対話に置き換え
+                 after:   { blockIndex: lines },    ← ブロックの後に対話を挟む
+                 explain: { predictId: lines } } }  ← 予想問題の解説を対話に */
+  function applyTalk(U0, T) {
+    if (!T || U0._talked) return;
+    U0._talked = true;
+    U0.chapters.forEach((c) => {
+      const t = T[c.id];
+      if (!t) return;
+      if (t.talk) { c.talk = t.talk; c.lead = null; }
+      const nb = [];
+      c.blocks.forEach((b, i) => {
+        if (t.before && t.before[i]) nb.push({ type: 'talk', lines: t.before[i] });
+        if (t.replace && t.replace[i]) nb.push({ type: 'talk', lines: t.replace[i] });
+        else {
+          if (b.type === 'predict' && t.explain && t.explain[b.id]) b.explain = t.explain[b.id];
+          if (b.type === 'mistakes' && t.fix) b.items.forEach((it, k) => { if (t.fix[k]) it.fix = t.fix[k]; });
+          nb.push(b);
+        }
+        if (t.after && t.after[i]) nb.push({ type: 'talk', lines: t.after[i] });
+      });
+      c.blocks = nb;
+    });
+    if (T._tasks) U0.tasks.forEach((tk) => { const x = T._tasks[tk.id]; if (x) tk.intro = x; });
+  }
+  const CAST = window.CAST || {
+    s: { name: 'サカイ', role: 'TA', mark: 'サ' },
+    r: { name: 'リョウガ', role: '受講生', mark: 'リ' },
+  };
+  function talk(lines, opt) {
+    opt = opt || {};
+    const wrap = h('div.talk' + (opt.compact ? '.compact' : ''));
+    (lines || []).forEach((ln, k) => {
+      const who = ln[0], txt = ln[1];
+      if (who === 'n') { wrap.appendChild(h('div.tk-note', { html: txt })); return; }
+      const c = CAST[who] || CAST.s;
+      const prev = k > 0 ? lines[k - 1][0] : null;
+      const cont = prev === who;
+      wrap.appendChild(h('div.tk.tk-' + who + (cont ? '.cont' : ''), { style: { '--i': k } },
+        h('div.tk-av', { 'aria-hidden': 'true' }, cont ? '' : c.mark),
+        h('div.tk-body', cont ? null : h('div.tk-name', h('b', c.name), h('span', c.role)), h('div.tk-bub', { html: txt }))));
+    });
+    return wrap;
+  }
+  window.PTalk = talk;
+  const asTalk = (x, who) => (Array.isArray(x) ? talk(x, { compact: true }) : talk([[who || 's', x]], { compact: true }));
 
   /* ---------------- 仮想ターミナル ---------------- */
   function shellBlock(b) {
@@ -234,7 +287,7 @@
       verdictHost.appendChild(h('div.verdict.' + (vok ? 'ok' : 'ng'),
         h('h6', vok ? '正解!' : '惜しい — 実際の結果はこちら'),
         h('pre', actual.trim() || '(出力なし)'),
-        b.explain ? h('div', { html: b.explain }) : null));
+        b.explain ? h('div', { style: { marginTop: '10px' } }, asTalk(b.explain)) : null));
       prog.mark(unitId, 'predict', b.id, true);
       traceHost.innerHTML = '';
       traceHost.appendChild(MemViz.Tracer({ files, units, stdin: b.stdin, title: 'なぜそうなる? — メモリで確認 (→ キーで 1 行ずつ)', eager: true }));
@@ -371,7 +424,7 @@
           h('button.btn.sm', { onclick: () => {
             const r = CLab.run({ 'main.c': it.code }, ['main.c'], { stdin: it.stdin || '', maxSnaps: 5 });
             out.innerHTML = '';
-            out.appendChild(h('div.verdict.ng', { style: { marginTop: '10px' } }, h('h6', 'このサイトの診断'), h('div', r.error ? r.error.msg : '出力: ' + r.out), h('div', { style: { marginTop: '6px', color: 'var(--ink)' }, html: '<b>直し方:</b> ' + it.fix })));
+            out.appendChild(h('div.verdict.ng', { style: { marginTop: '10px' } }, h('h6', 'このサイトの診断'), h('div', r.error ? r.error.msg : '出力: ' + r.out), h('div', { style: { marginTop: '10px' } }, asTalk(Array.isArray(it.fix) ? it.fix : [['s', '<b>直し方:</b> ' + it.fix]]))));
           } }, icon('run'), '実行して診断')));
       wrap.appendChild(card);
     });
@@ -470,7 +523,7 @@
     let hintN = 0;
     const btnHint = h('button.btn.sm', { onclick: () => {
       if (hintN >= t.hints.length) return;
-      hintList.appendChild(h('div.hint', h('b', 'HINT ' + (hintN + 1)), h('span', { html: t.hints[hintN] })));
+      hintList.appendChild(h('div.hint-talk', h('div.c-mute', { style: { fontSize: '11px', fontFamily: 'var(--f-mono)', margin: '4px 0' } }, 'HINT ' + (hintN + 1) + ' / ' + t.hints.length), talk([['s', t.hints[hintN]]], { compact: true })));
       hintN++; if (hintN >= t.hints.length) btnHint.disabled = true;
       btnHint.lastChild.textContent = hintN >= t.hints.length ? 'ヒントは以上' : 'ヒント (' + hintN + '/' + t.hints.length + ')';
     } }, icon('bulb'), h('span', 'ヒント (0/' + t.hints.length + ')'));
@@ -605,6 +658,7 @@
 
     const el = h('article.task#task-' + t.id,
       h('div.task-head', h('div', h('div.tn', '課題 ' + t.label), h('h3', t.title)), h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' } }, t.files.map((f) => h('span.chip.val', f)))),
+      t.intro ? h('div.task-intro', talk(t.intro, { compact: true })) : null,
       h('div.task-spec', { html: t.spec }),
       h('div.task-body',
         h('div.task-editor', fileTabs, edHost,

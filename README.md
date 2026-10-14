@@ -41,3 +41,11 @@
 ## 今後
 - B4 以降の単元追加（PDF 受領後）
 - malloc/free 等の動的メモリ対応（単元に応じてインタプリタを拡張）
+
+## 対話形式 (サカイ × リョウガ)
+解説は基本的に **サカイ (TA, `s`, 左・シアン)** と **リョウガ (受講生, `r`, 右・アンバー)** の対話で進みます。
+- 対話データ: `public/static/js/units/<unit>-talk.js` → `window.TALK.<unit>`
+- 構造: `{ 章id: { talk, before:{i}, replace:{i}, after:{i}, explain:{predictId}, fix:[...] }, _tasks:{課題id} }`
+  - `i` は `<unit>.js` の各章 `blocks` の **元のインデックス**
+  - 1 行 = `[who, html]` (`who` = `s` / `r` / `n`(注記))
+- 描画: `app.js` の `talk()` / `applyTalk()`。章リード・予想問題の解説・よくある間違いの直し方・課題の導入・ヒントが対話になります。
