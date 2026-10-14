@@ -3,11 +3,13 @@ import { Hono } from 'hono'
 const app = new Hono()
 
 // 単元レジストリ (PDF を受け取るたびにここと public/static/js/units/ に追加する)
-const UNITS: Record<string, { title: string; desc: string }> = {
+const UNITS: Record<string, { title: string; desc: string; extra?: string[] }> = {
+  b1: { title: 'Cプログラミングの基礎事項', desc: 'bit と型・標準入出力と標準エラー出力・リダイレクトと diff・EOF・配列と文字列', extra: ['code'] },
+  b2: { title: '分割コンパイル', desc: '関数とプロトタイプ宣言・コンパイルとリンク・ヘッダファイル・構造体・乱数', extra: ['code'] },
   b3: { title: 'ポインタ', desc: '変数の番地・& と *・ポインタ引数・構造体/配列へのポインタ' },
 }
 
-const shell = (opts: { page: string; unit?: string; title: string; desc: string }) => `<!DOCTYPE html>
+const shell = (opts: { page: string; unit?: string; title: string; desc: string; extra?: string[] }) => `<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -27,9 +29,12 @@ const shell = (opts: { page: string; unit?: string; title: string; desc: string 
 <script src="/static/js/core.js"></script>
 <script src="/static/js/memviz.js"></script>
 <script src="/static/js/interp.js"></script>
+<script src="/static/js/shell.js"></script>
+<script src="/static/js/widgets.js"></script>
 <script src="/static/js/units/index.js"></script>
 ${opts.unit ? `<script src="/static/js/units/${opts.unit}-data.js"></script>
 <script src="/static/js/units/${opts.unit}-tasks.js"></script>
+${(opts.extra ?? []).map((x) => `<script src="/static/js/units/${opts.unit}-${x}.js"></script>`).join('\n')}
 <script src="/static/js/units/${opts.unit}.js"></script>` : ''}
 <script src="/static/js/app.js"></script>
 </body>
@@ -43,9 +48,9 @@ app.get('/:unit', (c) => {
   const id = c.req.param('unit').toLowerCase()
   const u = UNITS[id]
   if (!u) return c.notFound()
-  return c.html(shell({ page: 'unit', unit: id, title: `${id.toUpperCase()} ${u.title} — プログラミング実習Ⅲ`, desc: u.desc }))
+  return c.html(shell({ page: 'unit', unit: id, title: `${id.toUpperCase()} ${u.title} — プログラミング実習Ⅲ`, desc: u.desc, extra: u.extra }))
 })
 
-app.get('/api/units', (c) => c.json(Object.entries(UNITS).map(([id, u]) => ({ id, ...u }))))
+app.get('/api/units', (c) => c.json(Object.entries(UNITS).map(([id, u]) => ({ id, title: u.title, desc: u.desc }))))
 
 export default app

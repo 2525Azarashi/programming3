@@ -110,7 +110,7 @@
           h('h1', 'Learn by', h('br'), 'Tracing.', h('span.jp', 'プログラミング実習Ⅲ')),
           h('p.home-lead', 'コードが「メモリの上で何をしているか」を, 1 行ずつ目で見て理解する。予想して, 動かして, 自分で書く。課題とレポートまで, このページで完結します。'),
           h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
-            h('a.btn.ptr', { href: '/b3' }, 'B3 ポインタを始める', icon('arrow')),
+            (() => { const r = units.filter((u) => u.ready); const nx = r.find((u) => unitScore(u.id) < 100) || r[0]; const started = r.some((u) => unitScore(u.id) > 0); return h('a.btn.ptr', { href: '/' + nx.id }, (started ? '続きから: ' : '') + nx.id.toUpperCase() + ' ' + nx.title + (started ? '' : ' から始める'), icon('arrow')); })(),
             h('a.btn', { href: '#units' }, '単元一覧'))),
         h('div.hero-art', heroMem())),
       h('section.units#units',
@@ -182,8 +182,38 @@
       case 'report': return h('div.blk', reportBox());
       case 'html': return h('div.blk', { html: b.html });
       case 'mistakes': return h('div.blk', mistakes(b));
+      case 'bits': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, Widgets.bits(b));
+      case 'flow': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, Widgets.flow(b));
+      case 'linkviz': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, Widgets.linkviz(b));
+      case 'shell': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, shellBlock(b));
     }
     return null;
+  }
+
+  /* ---------------- 仮想ターミナル ---------------- */
+  function shellBlock(b) {
+    const goals = (b.goals || []).map((x) => Object.assign({}, x));
+    const sh = Shell({ files: b.files, cwd: b.cwd || '~/' + unitId.toUpperCase(), cmds: b.cmds, goals, intro: b.intro, title: b.name, auto: b.auto });
+    if (b.editable) {
+      // 左にファイルエディタ (簡易) を置く
+      const names = b.editable;
+      let cur = names[0];
+      const ta = h('textarea.sh-edit', { spellcheck: 'false', 'aria-label': 'ファイル編集' });
+      const tabs = h('div.tr-files', names.map((n) => h('button', { 'data-f': n, onclick: () => sw(n) }, n)));
+      let sw = function (n) { cur = n; ta.value = sh.api.text(n) || ''; [...tabs.children].forEach((x) => x.classList.toggle('on', x.dataset.f === n)); }
+      const zen = h('div.sh-zen');
+      const scanZen = () => {
+        const hits = [];
+        ta.value.split('\n').forEach((l, i) => { const o = l.replace(/"(\\.|[^"\\])*"/g, (m) => ' '.repeat(m.length)).replace(/\/\*.*?\*\//g, (m) => ' '.repeat(m.length)); for (let k = 0; k < o.length; k++) if (o.charCodeAt(k) > 127) hits.push({ l: i + 1, c: k + 1, ch: o[k] }); });
+        zen.className = 'sh-zen' + (hits.length ? ' bad' : '');
+        zen.textContent = hits.length ? '⚠ 文字列・コメントの外に全角文字: ' + hits.slice(0, 4).map((x) => x.l + ' 行 ' + x.c + ' 文字目「' + (x.ch === '\u3000' ? '全角スペース' : x.ch) + '」').join(', ') : '✓ 文字列・コメントの外に全角文字はありません';
+      };
+      ta.addEventListener('input', () => { sh.api.setFiles({ [cur]: ta.value }); scanZen(); });
+      const _sw = sw; sw = (n) => { _sw(n); scanZen(); };
+      sw(cur);
+      return h('div.sh-split', h('div.sh-editor', h('div.sh-ed-h', h('span', 'エディタ'), h('span.c-mute', '変更はすぐターミナルのファイルに反映')), tabs, ta, zen), sh);
+    }
+    return sh;
   }
 
   /* ---------------- 予想ウィジェット ---------------- */
@@ -390,6 +420,11 @@
     document.head.appendChild(s1);
   }
 
+  function numClose(x, y, tol) {
+    const tx = x.trim().split(/\s+/), ty = y.trim().split(/\s+/);
+    if (tx.length !== ty.length) return false;
+    return tx.every((v, k) => { const a = parseFloat(v), b = parseFloat(ty[k]); return v === ty[k] || (!isNaN(a) && !isNaN(b) && Math.abs(a - b) <= tol * Math.max(1, Math.abs(b))); });
+  }
   function taskView(t) {
     const codeKey = (f) => 'code:' + unitId + ':' + t.id + ':' + f;
     const notesKey = 'notes:' + unitId + ':' + t.id;
@@ -406,14 +441,14 @@
     const edHost = h('div.ed');
 
     function getCode() { return cm ? cm.getValue() : ta ? ta.value : files[curFile]; }
-    function saveCur() { if (t.files.includes(curFile)) { files[curFile] = getCode(); store.set(codeKey(curFile), files[curFile]); } }
+    function saveCur() { if (curFile && t.files.includes(curFile)) { files[curFile] = getCode(); store.set(codeKey(curFile), files[curFile]); } }
     function switchFile(f) {
       saveCur();
       curFile = f;
       [...fileTabs.children].forEach((b) => b.classList.toggle('on', b.dataset.f === f));
       const ro = given[f] !== undefined;
       const val = ro ? given[f] : files[f];
-      if (cm) { cm.setValue(val); cm.setOption('readOnly', ro); edHost.classList.toggle('cm-readonly', ro); cm.clearHistory(); }
+      if (cm) { cm.setOption('mode', /\.(c|h)$/.test(f) ? 'text/x-csrc' : 'text/plain'); cm.setValue(val); cm.setOption('readOnly', ro); edHost.classList.toggle('cm-readonly', ro); cm.clearHistory(); }
       else if (ta) { ta.value = val; ta.readOnly = ro; }
     }
     loadCM((ok) => {
@@ -448,6 +483,18 @@
     function runTests() {
       const src = allSrc();
       resultHost.innerHTML = ''; banner.innerHTML = '';
+      if (t.custom) {
+        const r = t.custom(src);
+        resultHost.appendChild(h('div', r.out));
+        banner.appendChild(h('div.result-banner.' + (r.ok ? 'ok' : 'ng'), (r.ok ? '✓ ' : '✗ ') + r.msg));
+        const p0 = prog.get(unitId);
+        if (r.ok) { if (p0.tasks[t.id] !== 'done') toast(t.label + ' クリア!'); prog.mark(unitId, 'tasks', t.id, 'done'); }
+        else if (p0.tasks[t.id] !== 'done') prog.mark(unitId, 'tasks', t.id, 'try');
+        if (t.observe && r.ok) obsFacts.innerHTML = t.observe([]);
+        store.set('lastout:' + unitId + ':' + t.id, [r.out]);
+        store.set('lastok:' + unitId + ':' + t.id, r.ok);
+        return;
+      }
       if (cm) cm.eachLine((l) => cm.removeLineClass(l, 'background', 'cm-errline'));
       const tests = t.tests && t.tests.length ? t.tests : [{ stdin: stdinTa.value }];
       let allOk = true, outs = [];
@@ -468,7 +515,7 @@
           if (a[a.length - 1] === '') a.pop(); if (e[e.length - 1] === '') e.pop();
           const n = Math.max(a.length, e.length);
           for (let i = 0; i < n; i++) {
-            const ok = a[i] === e[i];
+            const ok = a[i] === e[i] || (tc.tol !== undefined && a[i] !== undefined && e[i] !== undefined && numClose(a[i], e[i], tc.tol));
             if (!ok) allOk = false;
             const row = h('div.dl.' + (ok ? 'ok' : 'ng'), h('i', ok ? '✓' : '✗'), h('span', a[i] === undefined ? '(行が足りない)' : a[i] === '' ? '(空行)' : a[i]));
             resultHost.appendChild(row);
@@ -478,6 +525,8 @@
           resultHost.appendChild(h('div', r.out || '(出力なし)'));
         }
       }
+      const ws = outs[0] && outs[0].warnings;
+      if (ws && ws.length) resultHost.prepend(h('div.warnline', ws.map((w) => w.loc.file + ':' + w.loc.line + ': warning: ' + w.msg).join('\n') + '\n→ 呼び出しより前にプロトタイプ宣言 (またはヘッダの #include) が必要です'));
       let verdict = null;
       if (allOk && t.check) verdict = t.check(outs, src, CLab);
       const ok = allOk && (!verdict || verdict.ok);
@@ -498,11 +547,41 @@
       traceHost.appendChild(tr);
       setTimeout(() => traceHost.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
     }
+    function terminal() {
+      const src = allSrc();
+      traceHost.innerHTML = '';
+      const tf = {};
+      Object.keys(src).forEach((f) => (tf[f] = src[f]));
+      if (t.term) {
+        const cfg = t.term(store);
+        const sh0 = Shell({ files: Object.assign({}, cfg.files, src), cwd: '~/' + unitId.toUpperCase(), cmds: cfg.cmds, title: t.label + ' — リダイレクトと diff', banner: 'san.c は課題 1-1 のエディタの内容, san-exp.txt は左のエディタの内容です。上から順にボタンを押してみよう。' });
+        traceHost.appendChild(sh0);
+        setTimeout(() => traceHost.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+        return;
+      }
+      const tests = t.tests || [];
+      const base = (t.files[0] || 'x.c').replace(/(main)?\.c$/, '').replace(/\d+$/, '') || 'x';
+      const cmds = [];
+      const units = unitsOf();
+      cmds.push('gcc ' + (t.gcc || units.join(' ')));
+      tests.forEach((tc, k) => {
+        const nm = tc.inName || (tc.stdin ? base + (tests.length > 1 ? '-in' + (k + 1) : '-in') + '.txt' : null);
+        const en = tc.expName || (tc.expect !== undefined ? base + (tests.length > 1 ? '-exp' + (k + 1) : '-exp') + '.txt' : null);
+        if (nm) tf[nm] = tc.stdin;
+        if (en) tf[en] = tc.expect + (tc.expect.endsWith('\n') ? '' : '\n');
+        cmds.push('./a' + (nm ? ' < ' + nm : '') + (en ? ' > out.txt' : ''));
+        if (en) cmds.push((tc.tol !== undefined ? 'diff ' : 'diff -Bw ') + 'out.txt ' + en);
+      });
+      if (!tests.length) cmds.push('./a');
+      const sh = Shell({ files: tf, cwd: '~/' + unitId.toUpperCase(), cmds, title: t.label + ' — 自分のコードで動作確認', banner: 'エディタの内容をコピーしたターミナルです。上から順にボタンを押すと, 配布資料どおりの「リダイレクト + diff」確認ができます。' + (tests.some((x) => x.tol !== undefined) ? ' (この課題は計算精度の差が許容されているため, diff で末尾の桁が違っても OK)' : '') });
+      traceHost.appendChild(sh);
+      setTimeout(() => { traceHost.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+    }
     function showAnswer() {
       if (!confirm('模範解答を表示します。まずは自分で書いてみるのがおすすめです。表示しますか?')) return;
       const box = h('div', { style: { marginTop: '8px' } });
       Object.keys(t.solution).forEach((f) => box.append(h('div.c-mute', { style: { fontSize: '11px', margin: '6px 0 4px', fontFamily: 'var(--f-mono)' } }, f), codeBlock(t.solution[f])));
-      box.appendChild(h('button.btn.sm', { style: { marginTop: '8px' }, onclick: () => { if (confirm('エディタの内容を模範解答で置き換えます。よろしいですか?')) { Object.assign(files, t.solution); Object.keys(t.solution).forEach((f) => store.set(codeKey(f), t.solution[f])); switchFile(t.files[0]); } } }, '解答をエディタに読み込む'));
+      box.appendChild(h('button.btn.sm', { style: { marginTop: '8px' }, onclick: () => { if (confirm('エディタの内容を模範解答で置き換えます。よろしいですか?')) { Object.keys(t.solution).forEach((f) => { if (t.files.includes(f)) { files[f] = t.solution[f]; store.set(codeKey(f), t.solution[f]); } }); curFile = null; switchFile(t.files[0]); toast('模範解答を読み込みました'); } } }, '解答をエディタに読み込む'));
       ansHost.innerHTML = ''; ansHost.appendChild(box);
     }
     const ansHost = h('div');
@@ -531,13 +610,14 @@
         h('div.task-editor', fileTabs, edHost,
           h('div.task-actions',
             h('button.btn.sm.ptr', { onclick: runTests, title: 'Ctrl+Enter' }, icon('run'), 'テスト実行'),
-            h('button.btn.sm', { onclick: trace }, icon('trace'), 'メモリで追う'),
+            t.kind === 'text' ? null : h('button.btn.sm', { onclick: trace }, icon('trace'), 'メモリで追う'),
+            h('button.btn.sm', { onclick: terminal, title: 'gcc → リダイレクト → diff を実際の手順どおりに' }, icon('term'), 'ターミナル'),
             h('span.sp'),
             h('button.btn.sm.ghost', { onclick: () => { if (confirm('このファイルを初期状態に戻しますか?')) { files[curFile] = t.starter[curFile]; store.del(codeKey(curFile)); switchFile(curFile); } }, title: '初期化' }, icon('reset')),
             h('button.btn.sm.ghost', { onclick: download, title: '.c をダウンロード' }, icon('dl'), '保存'))),
         h('div.task-side',
           h('div.sec', h('h6', h('span', '結果'), null), banner, h('div', { style: { height: '8px' } }), resultHost),
-          !t.tests ? h('div.sec', h('h6', '標準入力 (stdin)'), stdinTa) : h('div.sec', h('h6', 'テストデータ'), h('div.c-mute', { style: { fontSize: '12.5px' } }, t.tests.map((x, k) => h('div', { style: { marginBottom: '4px' } }, h('span', 'テスト' + (k + 1) + ': 入力 '), h('code.ic', (x.stdin || '(なし)').trim().replace(/\n/g, ' ⏎ ').slice(0, 60))))), h('div', { style: { marginTop: '8px' } }, h('label.c-mute', { style: { fontSize: '11px' } }, '「メモリで追う」で使う入力'), stdinTa)),
+          t.kind === 'text' ? null : !t.tests ? h('div.sec', h('h6', '標準入力 (stdin)'), stdinTa) : h('div.sec', h('h6', 'テストデータ'), h('div.c-mute', { style: { fontSize: '12.5px' } }, t.tests.map((x, k) => h('div', { style: { marginBottom: '4px' } }, h('span', 'テスト' + (k + 1) + ': 入力 '), h('code.ic', (x.stdin || '(なし)').trim().replace(/\n/g, ' ⏎ ').slice(0, 60))))), h('div', { style: { marginTop: '8px' } }, h('label.c-mute', { style: { fontSize: '11px' } }, '「メモリで追う」で使う入力'), stdinTa)),
           h('div.sec', h('h6', h('span', 'ヒント'), btnHint), hintList, h('div', { style: { marginTop: '10px' } }, h('button.btn.sm.ghost', { onclick: showAnswer }, icon('eye'), '模範解答')), ansHost))),
       notesEl,
       traceHost);
@@ -554,22 +634,33 @@
     const d = new Date();
     const inDate = h('input', { value: d.getFullYear() + '年' + String(d.getMonth() + 1).padStart(2, '0') + '月' + String(d.getDate()).padStart(2, '0') + '日', size: 16 });
     const inclOpt = h('input', { type: 'checkbox', checked: true });
+    const sepId = U0.optReport;           // 例: B1 のオプション課題は別レポート O1
+    let which = 'main';
+    const whichTabs = sepId ? h('div.tabs', [['main', unitId.toUpperCase() + '.txt'], ['opt', sepId + '.txt (オプション)']].map(([k, l]) => h('button' + (k === 'main' ? '.on' : ''), { 'data-k': k, onclick: () => { which = k; [...whichTabs.children].forEach((b) => b.classList.toggle('on', b.dataset.k === k)); dlBtn.lastChild.textContent = repName(); gen(); } }, l))) : null;
+    const repName = () => (which === 'opt' ? sepId : unitId.toUpperCase()) + '.txt';
     const pre = h('pre.report-pre');
     const status = h('div.c-mute', { style: { fontSize: '12.5px', padding: '0 22px 14px' } });
+    const dlBtn = h('button.btn.sm.pri', { onclick: () => { const t = gen(); const a = h('a', { href: URL.createObjectURL(new Blob([t], { type: 'text/plain' })), download: repName() }); document.body.appendChild(a); a.click(); a.remove(); toast(repName() + ' をダウンロード'); } }, icon('dl'), h('span', unitId.toUpperCase() + '.txt'));
     function gen() {
       store.set('profile', { no: inNo.value, name: inName.value });
       const SEP = '----------------------------------------';
-      const L = ['プログラミング実習III', '課題: ' + unitId.toUpperCase(), '番号: ' + inNo.value, '氏名: ' + inName.value, '作成: ' + inDate.value, '', SEP];
+      const L = ['プログラミング実習III', '課題: ' + (which === 'opt' ? sepId : unitId.toUpperCase()), '番号: ' + inNo.value, '氏名: ' + inName.value, '作成: ' + inDate.value, '', SEP];
       let missing = [];
       U0.tasks.forEach((t) => {
-        if (t.optional && !inclOpt.checked) return;
         const p = prog.get(unitId).tasks[t.id];
-        if (t.optional && p !== 'done') return;
+        if (sepId) { if (which === 'opt' ? !t.optional : t.optional) return; if (which === 'opt' && p !== 'done' && !t.optional) return; }
+        else { if (t.optional && !inclOpt.checked) return; if (t.optional && p !== 'done') return; }
         const notes = store.get('notes:' + unitId + ':' + t.id, {});
         const outs = store.get('lastout:' + unitId + ':' + t.id, null);
         const ok = store.get('lastok:' + unitId + ':' + t.id, false);
         if (!ok) missing.push(t.label);
         L.push('', '[' + t.reportTitle + ']', '', t.summary, '');
+        if (t.noRun) {
+          L.push(t.noRun);
+          if (notes.obs) L.push('', (t.obsTitle || '考察') + ':', notes.obs.trim());
+          L.push('', '工夫した点:', (notes.kufu || '(未記入)').trim(), '', '感想:', (notes.kanso || '(未記入)').trim(), SEP);
+          return;
+        }
         L.push('実行結果:');
         if (outs && outs.length) {
           outs.forEach((o, k) => {
@@ -591,11 +682,11 @@
     const el = h('div.report-box',
       h('div.report-cfg',
         h('label', '番号', inNo), h('label', '氏名', inName), h('label', '作成日', inDate),
-        h('label', { style: { display: 'flex', alignItems: 'center', gap: '6px', paddingBottom: '8px' } }, inclOpt, 'オプション課題 (完了分) を含める'),
+        sepId ? h('div', { style: { paddingBottom: '4px' } }, h('div.c-mute', { style: { fontSize: '11px', marginBottom: '4px' } }, 'オプション課題は別レポート ' + sepId + ' で提出'), whichTabs) : h('label', { style: { display: 'flex', alignItems: 'center', gap: '6px', paddingBottom: '8px' } }, inclOpt, 'オプション課題 (完了分) を含める'),
         h('span', { style: { flex: 1 } }),
         h('button.btn.sm', { onclick: gen }, icon('reset'), '再生成'),
         h('button.btn.sm', { onclick: () => { const t = gen(); navigator.clipboard.writeText(t).then(() => toast('コピーしました')); } }, icon('copy'), 'コピー'),
-        h('button.btn.sm.pri', { onclick: () => { const t = gen(); const a = h('a', { href: URL.createObjectURL(new Blob([t], { type: 'text/plain' })), download: unitId.toUpperCase() + '.txt' }); document.body.appendChild(a); a.click(); a.remove(); toast(unitId.toUpperCase() + '.txt をダウンロード'); } }, icon('dl'), unitId.toUpperCase() + '.txt')),
+        dlBtn),
       status, pre);
     [inNo, inName, inDate].forEach((x) => x.addEventListener('input', gen));
     inclOpt.addEventListener('change', gen);

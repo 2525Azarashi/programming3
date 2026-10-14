@@ -42,7 +42,7 @@
     '+', '-', '*', '/', '%', '=', '<', '>', '!', '&', '|', '^', '~', '?', ':', ';', ',', '.', '(', ')', '[', ']', '{', '}'];
 
   function tokenize(src, file) {
-    src = src.replace(/\r\n?/g, '\n').replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\u3000/g, ' ');
+    src = src.replace(/\r\n?/g, '\n');
     const toks = [];
     let i = 0, line = 1, bol = true;
     const n = src.length;
@@ -91,7 +91,14 @@
       }
       let p = null;
       for (const q of PUNCT) if (src.startsWith(q, i)) { p = q; break; }
-      if (!p) err('解釈できない文字「' + c + '」があります');
+      if (!p) {
+        if (c.charCodeAt(0) > 127) {
+          const b = Array.from(new TextEncoder().encode(c)).map((x) => '\\' + x.toString(8)).join(' ');
+          const nm = c === '\u3000' ? '全角スペース' : /[“”‘’]/.test(c) ? '全角の引用符' : /[；（）｛｝，＝＋－＊／＜＞＆％]/.test(c) ? '全角の記号' : '全角文字';
+          err('プログラム中 (文字列・コメントの外) に' + nm + '「' + (c === '\u3000' ? '　' : c) + '」があります。gcc では「error: stray \'' + b.split(' ')[0] + '\' in program」になります。半角で打ち直してください');
+        }
+        err('解釈できない文字「' + c + '」があります');
+      }
       toks.push({ ty: 'p', v: p, file, line }); i += p.length;
     }
     return toks;
@@ -148,6 +155,7 @@
   function parse(toks) {
     let pos = 0;
     const typedefs = { size_t: T.long, FILE: T.int };
+    const funcs = {}, globals = [];
     const structs = {};
     const peek = (o = 0) => toks[pos + o];
     const next = () => toks[pos++];
@@ -292,6 +300,7 @@
           next(); const args = [];
           if (!isP(')')) { do { args.push(assign()); } while (isP(',') && next()); }
           eat(')'); e = { k: 'call', f: e, args, loc: loc(t) };
+          if (e.f.k === 'id' && !funcs[e.f.name] && !BUILTIN_NAMES.includes(e.f.name) && !warned[e.f.name]) { warned[e.f.name] = 1; warnings.push({ msg: "implicit declaration of function '" + e.f.name + "'", name: e.f.name, loc: loc(t) }); }
         } else if (t.v === '.' || t.v === '->') { next(); e = { k: 'mem', a: e, name: ident(), arrow: t.v === '->', loc: loc(t) }; }
         else if (t.v === '++' || t.v === '--') { next(); e = { k: 'post', op: t.v, a: e, loc: loc(t) }; }
         else break;
@@ -363,7 +372,8 @@
     }
 
     /* 外部宣言 */
-    const funcs = {}, globals = [];
+    const warnings = [], warned = {};
+    void 0;
     while (peek().ty !== 'eof') {
       if (isId('typedef')) {
         next();
@@ -403,7 +413,7 @@
       globals.push(declStmt(true));
       void isStatic;
     }
-    return { funcs, globals };
+    return { funcs, globals, warnings };
   }
 
   const utf8 = (s) => Array.from(new TextEncoder().encode(s));
@@ -439,7 +449,7 @@
     const maxSnaps = opt.maxSnaps || 2500;
     const maxOps = opt.maxOps || 4000000;
     const stdin = opt.stdin || '';
-    const res = { steps: [], out: '', err: '', error: null, exit: 0, truncated: false };
+    const res = { steps: [], out: '', err: '', error: null, exit: 0, truncated: false, warnings: [] };
     let prog;
     const units = Array.isArray(mainName) ? mainName : [mainName];
     mainName = units[0];
@@ -453,6 +463,7 @@
           if (f.body || !prog.funcs[k]) prog.funcs[k] = f;
         }
         prog.globals.push(...p.globals);
+        (p.warnings || []).forEach((w) => { if (!res.warnings.some((x) => x.name === w.name && x.loc.file === w.loc.file)) res.warnings.push(w); });
       }
     }
     catch (e) { if (!e.isC) { e = new CError('構文の解析に失敗しました: ' + e.message, null); } res.error = { msg: e.message, loc: e.loc, phase: 'compile' }; return res; }
@@ -466,6 +477,13 @@
     let gtop = GLOBAL_BASE, stop = STR_BASE;
     const strLits = new Map();
     let inPos = 0, ops = 0, out = '', errOut = '';
+    /* 端末の見え方 (stdout / stderr / キーボード入力のエコー) を出現順に記録 */
+    const term = []; let termLen = 0, echoPos = 0, eofShown = false;
+    const tw = (s, txt) => { if (!txt) return; const L = term[term.length - 1]; if (L && L.s === s) L.t += txt; else term.push({ s, t: txt }); termLen += txt.length; };
+    const wOut = (txt) => { out += txt; tw('out', txt); };
+    const wErr = (txt) => { errOut += txt; tw('err', txt); };
+    const echoTo = (p) => { if (p <= echoPos) return; let j = stdin.indexOf('\n', p - 1); j = j < 0 ? stdin.length : j + 1; tw('in', stdin.slice(echoPos, j)); echoPos = j; };
+    const echoEof = () => { echoTo(stdin.length); if (!eofShown) { eofShown = true; tw('eof', '^D\n'); } };
     const rng = new GlibcRand();
     let curLoc = null;
     const staticStore = new Map();
@@ -954,12 +972,12 @@
 
     const num = (v) => ({ v, t: T.double });
     const BUILTINS = {
-      printf: (a, l) => { if (!a.length) fail('printf に引数がありません', l); const s = doPrintf(a[0], a.slice(1), l); out += s; return { v: s.length, t: T.int }; },
-      fprintf: (a, l) => { const st = a[0]; if (!st || !st.stream) fail('fprintf の第1引数には stdout か stderr を指定します', l); const s = doPrintf(a[1], a.slice(2), l); if (st.stream === 2) errOut += s; else out += s; return { v: s.length, t: T.int }; },
-      scanf: (a, l) => ({ v: doScanf(a[0], a.slice(1), l), t: T.int }),
-      puts: (a) => { out += readStr(a[0].v) + '\n'; return { v: 1, t: T.int }; },
-      putchar: (a) => { out += String.fromCharCode(a[0].v); return { v: a[0].v, t: T.int }; },
-      getchar: () => { if (inPos >= stdin.length) return { v: -1, t: T.int }; return { v: stdin.charCodeAt(inPos++), t: T.int }; },
+      printf: (a, l) => { if (!a.length) fail('printf に引数がありません', l); const s = doPrintf(a[0], a.slice(1), l); wOut(s); return { v: s.length, t: T.int }; },
+      fprintf: (a, l) => { const st = a[0]; if (!st || !st.stream) fail('fprintf の第1引数には stdout か stderr を指定します', l); const s = doPrintf(a[1], a.slice(2), l); if (st.stream === 2) wErr(s); else wOut(s); return { v: s.length, t: T.int }; },
+      scanf: (a, l) => { const v = doScanf(a[0], a.slice(1), l); if (v === -1) echoEof(); else echoTo(inPos); return { v, t: T.int }; },
+      puts: (a) => { wOut(readStr(a[0].v) + '\n'); return { v: 1, t: T.int }; },
+      putchar: (a) => { wOut(String.fromCharCode(a[0].v)); return { v: a[0].v, t: T.int }; },
+      getchar: () => { if (inPos >= stdin.length) { echoEof(); return { v: -1, t: T.int }; } const v = stdin.charCodeAt(inPos++); echoTo(inPos); return { v, t: T.int }; },
       sqrt: (a, l) => { if (a[0].v < 0) fail('負の数の平方根 sqrt(' + a[0].v + ') を求めました', l); return num(Math.sqrt(a[0].v)); },
       fabs: (a) => num(Math.abs(a[0].v)), abs: (a) => ({ v: Math.abs(a[0].v) | 0, t: T.int }),
       pow: (a) => num(Math.pow(a[0].v, a[1].v)), floor: (a) => num(Math.floor(a[0].v)), ceil: (a) => num(Math.ceil(a[0].v)),
@@ -1041,7 +1059,7 @@
         loc: l,
         frames: frames.map((f) => ({ fn: f.fn, base: f.base, vars: f.vars.slice(), callLoc: f.callLoc })),
         globals: gvars.slice(),
-        log, out: out.length, err: errOut.length,
+        log, out: out.length, err: errOut.length, term: termLen,
       });
       log = [];
     }
@@ -1127,10 +1145,30 @@
       }
     }
     if (res.steps.length && log.length) { res.steps[res.steps.length - 1].log = res.steps[res.steps.length - 1].log.concat(log); log = []; }
-    res.out = out; res.err = errOut;
+    res.out = out; res.err = errOut; res.term = term;
     res.nameAt = null;
     return res;
   }
 
-  global.CLab = { run, typeStr, tokenize, CError, kindLabel };
+  /* ---------- コンパイルのみ (gcc -c 相当): 構文チェックと, 定義/参照している関数の一覧 ---------- */
+  function compile(files, unit) {
+    try {
+      const p = parse(preprocess(unit, files));
+      const defined = [], declared = [], called = new Set();
+      for (const k in p.funcs) (p.funcs[k].body ? defined : declared).push(k);
+      const seen = new WeakSet();
+      (function walk(o) {
+        if (!o || typeof o !== 'object' || seen.has(o)) return;
+        seen.add(o);
+        if (o.k === 'call' && o.f && o.f.k === 'id') called.add(o.f.name);
+        for (const key in o) if (key !== 'loc' && key !== 't' && key !== 'type') walk(o[key]);
+      })(p.funcs);
+      return { ok: true, defined, declared, called: [...called], warnings: p.warnings || [] };
+    } catch (e) {
+      return { ok: false, error: { msg: e.isC ? e.message : '構文の解析に失敗しました: ' + e.message, loc: e.loc } };
+    }
+  }
+  const BUILTIN_NAMES = ['printf', 'fprintf', 'scanf', 'puts', 'putchar', 'getchar', 'sqrt', 'fabs', 'abs', 'pow', 'floor', 'ceil', 'log', 'exp', 'cos', 'sin', 'fmod', 'round', 'rand', 'srand', 'time', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'assert', 'exit', 'malloc', 'calloc', 'free', 'sizeof'];
+
+  global.CLab = { run, compile, BUILTIN_NAMES, typeStr, tokenize, CError, kindLabel };
 })(window);

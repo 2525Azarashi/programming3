@@ -113,7 +113,8 @@
       }
     }
     if (merged.length > shown.length) lines.push({ ic: '…', html: 'ほか ' + (merged.length - shown.length) + ' 箇所が変化' });
-    if (s.out > prev.out) lines.push({ ic: '>', html: '画面に出力しました (下の「出力」欄)。' });
+    if (s.out > prev.out) lines.push({ ic: '>', html: '<b>標準出力 (stdout)</b> に出力しました。<span class="c-mute">リダイレクト「&gt; out.txt」するとファイルに入る側です。</span>' });
+    if (s.err > prev.err) lines.push({ ic: '!', html: '<b class="c-addr">標準エラー出力 (stderr)</b> に出力しました。<span class="c-mute">リダイレクトしても画面に残る側 (プロンプト向き)。</span>' });
     if (s.loc && s.loc.end) lines.push({ ic: '■', html: 'プログラムが終了しました。' });
     if (!lines.length) lines.push({ ic: '·', html: 'メモリの変化はありません (条件判定・制御のみ)。' });
     return lines;
@@ -291,6 +292,8 @@
     const memHost = h('div');
     const memWrap = h('div.tr-mem', memHost, legend());
     const outPre = h('pre');
+    let cmode = o.consoleMode || 'auto';
+    const cTabs = h('div.ctabs', [['term', '端末'], ['out', 'stdout'], ['err', 'stderr']].map(([k, l]) => h('button', { 'data-m': k, onclick: () => { cmode = k; paintOut(); } }, l)));
     const btnFirst = h('button.btn.sm.icon', { title: '最初へ (Home)', 'aria-label': '最初へ', onclick: () => go(0) }, icon('first'));
     const btnPrev = h('button.btn.sm.icon', { title: '1 つ戻る (←)', 'aria-label': '1 つ戻る', onclick: () => go(i - 1) }, icon('prev'));
     const btnPlay = h('button.btn.sm.ptr', { onclick: () => toggle() }, icon('play'), h('span', '再生'));
@@ -307,7 +310,7 @@
       h('div.tr-body',
         h('div.tr-code', fileTabs, codeHost),
         h('div.tr-right', cap, memWrap)),
-      h('div.tr-console', h('div.ch', h('span', '出力 (stdout)'), h('span', { class: 'exitc' }, '')), outPre),
+      h('div.tr-console', h('div.ch', cTabs, h('span', { class: 'exitc' }, '')), outPre),
       stdinBar,
       h('div.tr-ctrl', btnFirst, btnPrev, btnPlay, btnNext, btnLast, range, cnt, spd));
 
@@ -384,11 +387,7 @@
         const pl = res.steps[i - 1].loc;
         if (pl && codeEls[pl.file] && pl.file === (s.loc && s.loc.file)) { const ln = codeEls[pl.file].querySelector('.ln[data-l="' + pl.line + '"]'); if (ln && !ln.classList.contains('cur')) ln.classList.add('prev'); }
       }
-      const txt = res.out.slice(0, s.out);
-      outPre.innerHTML = '';
-      outPre.appendChild(document.createTextNode(txt));
-      if (i < res.steps.length - 1) outPre.appendChild(h('span.cur'));
-      outPre.scrollTop = outPre.scrollHeight;
+      paintOut();
       const last = i === res.steps.length - 1;
       el.querySelector('.exitc').textContent = last ? (res.error ? 'エラーで停止' : res.truncated ? '途中まで表示 (ステップ上限)' : 'return ' + res.exit) : '';
       range.value = i;
@@ -397,6 +396,27 @@
       btnNext.disabled = btnLast.disabled = last;
       if (last) stop();
       if (o.onStep) o.onStep(i, res);
+    }
+    function paintOut() {
+      if (!res || !res.steps.length) return;
+      const s = res.steps[i];
+      let m = cmode;
+      if (m === 'auto') m = (res.err || stdin) && res.term ? 'term' : 'out';
+      [...cTabs.children].forEach((b) => b.classList.toggle('on', b.dataset.m === m));
+      outPre.innerHTML = '';
+      outPre.className = 'cm-' + m;
+      if (m === 'term' && res.term) {
+        let left = s.term || 0;
+        for (const seg of res.term) {
+          if (left <= 0) break;
+          const t = seg.t.slice(0, left); left -= seg.t.length;
+          outPre.appendChild(h('span.t-' + seg.s, t));
+        }
+      } else {
+        outPre.appendChild(document.createTextNode(m === 'err' ? res.err.slice(0, s.err) : res.out.slice(0, s.out)));
+      }
+      if (i < res.steps.length - 1) outPre.appendChild(h('span.cur'));
+      outPre.scrollTop = outPre.scrollHeight;
     }
     function play() {
       if (!res) return;
