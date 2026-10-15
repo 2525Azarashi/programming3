@@ -9,7 +9,7 @@
 
   function hero() {
     const svg = '<svg viewBox="0 0 520 420" role="img" aria-label="main.c と func.c をコンパイルしてリンクする図">' +
-      '<defs><marker id="b2h" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#a78bfa"/></marker></defs>' +
+      '<defs><marker id="b2h" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7f5cf0"/></marker></defs>' +
       [['main.c', 40, 'int main(void)', '{ dist(…); }'], ['dist.c', 190, 'double dist(…)', '{ return …; }']].map(([n, y, l1, l2]) =>
         `<g class="lv-src"><rect x="10" y="${y}" width="150" height="110" rx="12"/><text x="24" y="${y + 26}" class="lv-n">${n}</text><text x="24" y="${y + 56}" class="lv-c">${l1}</text><text x="24" y="${y + 76}" class="lv-c">${l2}</text></g>`).join('') +
       '<g class="lv-src hdr"><rect x="40" y="330" width="120" height="40" rx="10"/><text x="100" y="355" text-anchor="middle" class="lv-n">dist.h</text></g>' +
@@ -23,9 +23,9 @@
       '<rect x="384" y="224" width="112" height="40" rx="6" class="in3"/><text x="440" y="249" text-anchor="middle" class="lv-t">printf…</text></g>' +
       '<path d="M320 95 C 345 95, 345 148, 368 148" class="lv-ar" marker-end="url(#b2h)"/><path d="M320 245 C 345 245, 345 196, 368 196" class="lv-ar" marker-end="url(#b2h)"/>' +
       '<text x="345" y="72" text-anchor="middle" class="lv-op">link</text>' +
-      '<text x="210" y="352" class="hm-t" font-size="13"><tspan style="fill:#7a8496">$</tspan> gcc -c dist.c</text>' +
-      '<text x="210" y="376" class="hm-t" font-size="13"><tspan style="fill:#7a8496">$</tspan> gcc main.o dist.o</text>' +
-      '<text x="210" y="400" class="hm-t" font-size="13"><tspan style="fill:#7a8496">$</tspan> ./a < dist-in.txt</text>' +
+      '<text x="210" y="352" class="hm-t" font-size="13"><tspan style="fill:#a08a99">$</tspan> gcc -c dist.c</text>' +
+      '<text x="210" y="376" class="hm-t" font-size="13"><tspan style="fill:#a08a99">$</tspan> gcc main.o dist.o</text>' +
+      '<text x="210" y="400" class="hm-t" font-size="13"><tspan style="fill:#a08a99">$</tspan> ./a < dist-in.txt</text>' +
       '</svg>';
     return h('section.u-hero',
       h('div.u-hero-grid',

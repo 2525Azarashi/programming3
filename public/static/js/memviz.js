@@ -228,7 +228,7 @@
     if (!root.isConnected) return;
     const R = root.getBoundingClientRect();
     svg.setAttribute('width', R.width); svg.setAttribute('height', R.height);
-    svg.innerHTML = '<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ff4f7b" stroke="none"/></marker></defs>';
+    svg.innerHTML = '<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f2467f" stroke="none"/></marker></defs>';
     const srcs = root.querySelectorAll('[data-ptr]');
     let lane = 0;
     srcs.forEach((b) => {
@@ -268,10 +268,10 @@
 
   function legend() {
     return h('div.mem-legend',
-      h('span', h('i', { style: { background: 'var(--val-soft)', border: '1px solid rgba(79,214,230,.5)' } }), '値'),
-      h('span', h('i', { style: { background: 'var(--ptr-soft)', border: '1px solid rgba(255,79,123,.6)' } }), 'ポインタ (番地を格納)'),
-      h('span', h('i', { style: { border: '1px dashed rgba(255,255,255,.3)' } }), '未初期化 (不定)'),
-      h('span', h('i', { style: { background: 'rgba(255,191,71,.25)' } }), '直前に変化'),
+      h('span', h('i', { style: { background: 'var(--val-soft)', border: '1px solid rgba(20,151,171,.5)' } }), '値'),
+      h('span', h('i', { style: { background: 'var(--ptr-soft)', border: '1px solid rgba(242,70,127,.6)' } }), 'ポインタ (番地を格納)'),
+      h('span', h('i', { style: { border: '1px dashed rgba(74,44,66,.3)' } }), '未初期化 (不定)'),
+      h('span', h('i', { style: { background: 'rgba(217,127,0,.25)' } }), '直前に変化'),
       h('span', h('b', { style: { color: 'var(--addr)', fontSize: '11px' } }, '100'), '番地'));
   }
 

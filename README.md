@@ -49,3 +49,12 @@
   - `i` は `<unit>.js` の各章 `blocks` の **元のインデックス**
   - 1 行 = `[who, html]` (`who` = `s` / `r` / `n`(注記))
 - 描画: `app.js` の `talk()` / `applyTalk()`。章リード・予想問題の解説・よくある間違いの直し方・課題の導入・ヒントが対話になります。
+
+## デザイン — 「ぷにぷにメモリ帳」(可愛い UI)
+- クリーム色の方眼ノート + 太いインク輪郭 (`--bw: 2px`) + ずらし影 (`--sh`) + パステル (pink / mint / lemon / sky / lav / peach)
+- フォント: Zen Maru Gothic (本文) / Fredoka (英字見出し) / JetBrains Mono (コード)
+- キャラクター: `U.face(who, mood)` (core.js) が SVG の顔を生成。mood = normal / happy / wow / think はセリフから `U.moodOf` で自動判定。まばたきアニメ付き
+- ごほうび: 予想問題の正解・課題クリアで `U.confettiAt(el)` の紙吹雪
+- ホーム: 跳ねる見出し, キャラ紹介カード, 浮かぶステッカー, マーキー, 単元カード (進捗バー)
+- ターミナル / コンソールだけは夜色 (#3b2738) の “おもちゃパソコン”
+- `prefers-reduced-motion` で全アニメ停止

@@ -168,7 +168,7 @@
     function paint() {
       [...btns.children].forEach((x, k) => x.classList.toggle('on', k === stage));
       const W = 760, H = 330;
-      let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="コンパイルとリンク"><defs><marker id="lva" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a93a6"/></marker></defs>`;
+      let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="コンパイルとリンク"><defs><marker id="lva" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b8a3b1"/></marker></defs>`;
       const src = (x, y, n, lines) => `<g class="lv-src"><rect x="${x}" y="${y}" width="150" height="96" rx="10"/><text x="${x + 12}" y="${y + 22}" class="lv-n">${n}</text>${lines.map((l, i) => `<text x="${x + 12}" y="${y + 44 + i * 16}" class="lv-c">${l}</text>`).join('')}</g>`;
       const seg = (x, y, w, hh, addr, t, cls) => `<g class="lv-seg ${cls}"><rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="6"/><text x="${x - 8}" y="${y + 15}" text-anchor="end" class="lv-a">${addr}</text><text x="${x + w / 2}" y="${y + hh / 2 + 5}" text-anchor="middle" class="lv-t">${t}</text></g>`;
       s += src(20, 30, 'main.c', ['int main(void) {', '  func();', '}']);

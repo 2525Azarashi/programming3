@@ -10,9 +10,9 @@
   function hero() {
     const bits = '00000000000000000000000000001011';
     const svg = '<svg viewBox="0 0 520 420" role="img" aria-label="int 11 の bit パターンと, stdin / stdout / stderr の流れ">' +
-      '<defs>' + [['in', '#4fd6e6'], ['out', '#7ee787'], ['err', '#ffbf47']].map(([k, c]) => `<marker id="b1h-${k}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('') + '</defs>' +
-      '<text x="20" y="30" class="hm-t" font-size="12" style="fill:#ffbf47" fill-opacity=".85">int x = 11;   /* 32 bit = 4 Byte */</text>' +
-      bits.split('').map((b, i) => `<rect x="${20 + i * 15.4}" y="42" width="13.4" height="30" rx="3" class="hb${b === '1' ? ' on' : ''}${i === 0 ? ' sg' : ''}"/><text x="${26.7 + i * 15.4}" y="62" text-anchor="middle" class="hm-t" font-size="11" style="fill:${b === '1' ? '#0b0d11' : '#5c6578'}">${b}</text>`).join('') +
+      '<defs>' + [['in', '#1497ab'], ['out', '#22a461'], ['err', '#d97f00']].map(([k, c]) => `<marker id="b1h-${k}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('') + '</defs>' +
+      '<text x="20" y="30" class="hm-t" font-size="12" style="fill:#d97f00" fill-opacity=".85">int x = 11;   /* 32 bit = 4 Byte */</text>' +
+      bits.split('').map((b, i) => `<rect x="${20 + i * 15.4}" y="42" width="13.4" height="30" rx="3" class="hb${b === '1' ? ' on' : ''}${i === 0 ? ' sg' : ''}"/><text x="${26.7 + i * 15.4}" y="62" text-anchor="middle" class="hm-t" font-size="11" style="fill:${b === '1' ? '#ffffff' : '#c4b2bd'}">${b}</text>`).join('') +
       '<text x="20" y="94" class="hm-t" font-size="11" fill-opacity=".55">(値) = 2³ + 2¹ + 2⁰ = 11</text>' +
       '<g class="fl-box prog"><rect x="190" y="188" width="140" height="84" rx="14"/><text x="260" y="226" text-anchor="middle" class="t1">a.exe</text><text x="260" y="250" text-anchor="middle" class="t2">プログラム</text></g>' +
       '<g class="fl-box"><rect x="14" y="150" width="116" height="52" rx="12"/><text x="72" y="181" text-anchor="middle" class="t1">stdin</text></g>' +
@@ -21,8 +21,8 @@
       '<path d="M130 176 C 168 178, 160 220, 188 224" class="fl-arr in" marker-end="url(#b1h-in)"/>' +
       '<path d="M330 214 C 362 210, 360 166, 390 163" class="fl-arr out" marker-end="url(#b1h-out)"/>' +
       '<path d="M330 248 C 362 254, 360 300, 390 302" class="fl-arr err" marker-end="url(#b1h-err)"/>' +
-      '<text x="20" y="378" class="hm-t" font-size="13"><tspan style="fill:#7a8496">$</tspan> ./a <tspan style="fill:#4fd6e6">&lt; in.txt</tspan> <tspan style="fill:#7ee787">&gt; out.txt</tspan></text>' +
-      '<text x="20" y="402" class="hm-t" font-size="13"><tspan style="fill:#7a8496">$</tspan> diff -Bw out.txt exp.txt<tspan style="fill:#7a8496">   # 何も出なければ OK</tspan></text>' +
+      '<text x="20" y="378" class="hm-t" font-size="13"><tspan style="fill:#a08a99">$</tspan> ./a <tspan style="fill:#1497ab">&lt; in.txt</tspan> <tspan style="fill:#22a461">&gt; out.txt</tspan></text>' +
+      '<text x="20" y="402" class="hm-t" font-size="13"><tspan style="fill:#a08a99">$</tspan> diff -Bw out.txt exp.txt<tspan style="fill:#a08a99">   # 何も出なければ OK</tspan></text>' +
       '</svg>';
     return h('section.u-hero',
       h('div.u-hero-grid',

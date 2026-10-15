@@ -13,7 +13,7 @@
       if (k === 'html') el.innerHTML = v;
       else if (k === 'text') el.textContent = v;
       else if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
-      else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+      else if (k === 'style' && typeof v === 'object') { for (const sk in v) { if (sk.startsWith('--')) el.style.setProperty(sk, v[sk]); else el.style[sk] = v[sk]; } }
       else if (k === 'class') el.className += ' ' + v;
       else el.setAttribute(k, v === true ? '' : v);
     }
@@ -113,5 +113,75 @@
   };
   const icon = (n) => { const s = h('span', { html: ICONS[n] }); return s.firstChild; };
 
-  g.U = { h, esc, hlCode, codeBlock, store, toast, icon, ICONS };
+  /* キャラクターの顔 (SVG) — who: 's' サカイ (TA) / 'r' リョウガ (受講生)
+     mood: normal / happy / wow / think */
+  const INK = '#3b2738';
+  function face(who, mood) {
+    mood = mood || 'normal';
+    const S = who === 's';
+    const bg = S ? '#c8f1e8' : '#ffe9a6';
+    const hair = S ? '#2f6f78' : '#e0773a';
+    const skin = '#ffe6d6';
+    let s = `<svg viewBox="0 0 64 64" class="face face-${who} mood-${mood}" aria-hidden="true">`;
+    s += `<circle cx="32" cy="32" r="31" fill="${bg}"/>`;
+    // 後ろ髪
+    if (S) s += `<path d="M13 36 C11 22 20 12 32 12 C45 12 54 22 51 38 L51 47 C47 49 46 44 46 40 L18 40 C18 44 17 49 13 47 Z" fill="${hair}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
+    // 顔
+    s += `<circle cx="13.5" cy="38" r="3.6" fill="${skin}" stroke="${INK}" stroke-width="2"/><circle cx="50.5" cy="38" r="3.6" fill="${skin}" stroke="${INK}" stroke-width="2"/>`;
+    s += `<ellipse cx="32" cy="38" rx="18" ry="17" fill="${skin}" stroke="${INK}" stroke-width="2.2"/>`;
+    // 前髪
+    if (S) s += `<path d="M14 33 C14 20 22 13 32 13 C43 13 51 20 50 33 C46 27 40 24 34 23 C30 28 22 31 14 33 Z" fill="${hair}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
+    else s += `<path d="M13 34 L14.5 21 L19.5 24.5 L21 13 L27.5 19 L31.5 8.5 L37 18 L43.5 12 L45 23 L51 20 L51 34 C46 27.5 40 25 32 25 C24 25 18 27.5 13 34 Z" fill="${hair}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
+    // 目
+    const ey = 39, ex1 = 25, ex2 = 39;
+    s += '<g class="eyes">';
+    if (mood === 'happy') s += `<path d="M${ex1 - 3.2} ${ey + 1} Q${ex1} ${ey - 3.4} ${ex1 + 3.2} ${ey + 1}M${ex2 - 3.2} ${ey + 1} Q${ex2} ${ey - 3.4} ${ex2 + 3.2} ${ey + 1}" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`;
+    else if (mood === 'wow') s += `<circle cx="${ex1}" cy="${ey}" r="3.4" fill="${INK}"/><circle cx="${ex2}" cy="${ey}" r="3.4" fill="${INK}"/><circle cx="${ex1 + 1.2}" cy="${ey - 1.2}" r="1.2" fill="#fff"/><circle cx="${ex2 + 1.2}" cy="${ey - 1.2}" r="1.2" fill="#fff"/>`;
+    else if (mood === 'think') s += `<circle cx="${ex1 + 1}" cy="${ey - 1}" r="2.4" fill="${INK}"/><circle cx="${ex2 + 1}" cy="${ey - 1}" r="2.4" fill="${INK}"/><path d="M${ex2 - 3} ${ey - 6} L${ex2 + 3} ${ey - 7.5}" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>`;
+    else s += `<ellipse cx="${ex1}" cy="${ey}" rx="2.4" ry="2.9" fill="${INK}"/><ellipse cx="${ex2}" cy="${ey}" rx="2.4" ry="2.9" fill="${INK}"/><circle cx="${ex1 + .9}" cy="${ey - 1}" r=".9" fill="#fff"/><circle cx="${ex2 + .9}" cy="${ey - 1}" r=".9" fill="#fff"/>`;
+    s += '</g>';
+    // メガネ (サカイ)
+    if (S) s += `<g fill="rgba(255,255,255,.28)" stroke="${INK}" stroke-width="1.8"><circle cx="${ex1}" cy="${ey}" r="6.2"/><circle cx="${ex2}" cy="${ey}" r="6.2"/></g><path d="M${ex1 + 6.2} ${ey} Q32 ${ey - 2} ${ex2 - 6.2} ${ey}" fill="none" stroke="${INK}" stroke-width="1.8"/>`;
+    // ほっぺ
+    s += `<ellipse cx="19.5" cy="46" rx="3.6" ry="2.2" fill="#ff9fbf" opacity=".75"/><ellipse cx="44.5" cy="46" rx="3.6" ry="2.2" fill="#ff9fbf" opacity=".75"/>`;
+    // 口
+    if (mood === 'wow') s += `<ellipse cx="32" cy="48.5" rx="2.8" ry="3.4" fill="#d9465f" stroke="${INK}" stroke-width="1.8"/>`;
+    else if (mood === 'think') s += `<path d="M28.5 48.5 Q30.5 47 32.5 48.5 T36 48" fill="none" stroke="${INK}" stroke-width="1.9" stroke-linecap="round"/>`;
+    else if (!S || mood === 'happy') s += `<path d="M27.5 46.2 Q32 53.5 36.5 46.2 Z" fill="#d9465f" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>`;
+    else s += `<path d="M28.5 46.5 Q32 49.8 35.5 46.5" fill="none" stroke="${INK}" stroke-width="1.9" stroke-linecap="round"/>`;
+    // 汗 (think のリョウガ)
+    if (!S && mood === 'think') s += `<path d="M50 26 Q53 31 50 33 Q47 31 50 26 Z" fill="#9fdcff" stroke="${INK}" stroke-width="1.4"/>`;
+    s += '</svg>';
+    return s;
+  }
+  function moodOf(who, html) {
+    const t = String(html).replace(/<[^>]+>/g, '');
+    if (/[?？]\s*$|…\s*$|ような…|かな/.test(t)) return 'think';
+    if (/[!！]/.test(t)) return who === 'r' ? 'wow' : 'happy';
+    if (/^(そう|その通り|正解|いいね|ばっちり|完璧|うん)/.test(t)) return 'happy';
+    return 'normal';
+  }
+
+  /* 紙吹雪 — 正解・クリア時のごほうび */
+  function confetti(x, y, n) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const cols = ['#f2467f', '#ffd23f', '#3ccfb4', '#7f5cf0', '#ff9a5a', '#5aaeff'];
+    const host = h('div.confetti', { 'aria-hidden': 'true' });
+    document.body.appendChild(host);
+    n = n || 34;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, v = 90 + Math.random() * 170;
+      const p = h('i', { style: { left: x + 'px', top: y + 'px', background: cols[i % cols.length], borderRadius: i % 3 === 0 ? '50%' : i % 3 === 1 ? '2px' : '0', width: (6 + Math.random() * 6) + 'px', height: (6 + Math.random() * 8) + 'px' } });
+      host.appendChild(p);
+      p.animate([
+        { transform: 'translate(-50%,-50%) rotate(0)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${Math.cos(a) * v}px), calc(-50% + ${Math.sin(a) * v - 60}px)) rotate(${Math.random() * 540}deg)`, opacity: 1, offset: .55 },
+        { transform: `translate(calc(-50% + ${Math.cos(a) * v * 1.25}px), calc(-50% + ${Math.sin(a) * v + 120}px)) rotate(${Math.random() * 900}deg)`, opacity: 0 },
+      ], { duration: 1100 + Math.random() * 600, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+    }
+    setTimeout(() => host.remove(), 1900);
+  }
+  function confettiAt(el, n) { if (!el) return; const r = el.getBoundingClientRect(); confetti(r.left + r.width / 2, r.top + Math.min(r.height / 2, 60), n); }
+
+  g.U = { h, esc, hlCode, codeBlock, store, toast, icon, ICONS, face, moodOf, confetti, confettiAt };
 })(window);

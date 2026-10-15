@@ -16,16 +16,16 @@ const shell = (opts: { page: string; unit?: string; title: string; desc: string;
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${opts.title}</title>
 <meta name="description" content="${opts.desc}">
-<meta name="theme-color" content="#0c0e12">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230c0e12'/><text x='50%25' y='58%25' font-family='monospace' font-size='34' font-weight='700' fill='%23ff5c8a' text-anchor='middle' dominant-baseline='middle'>*p</text></svg>">
+<meta name="theme-color" content="#fff6ec">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23f2467f'/><text x='50%25' y='58%25' font-family='monospace' font-size='34' font-weight='700' fill='%23ffffff' text-anchor='middle' dominant-baseline='middle'>*p</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/app.css">
 </head>
 <body data-page="${opts.page}" data-unit="${opts.unit ?? ''}">
 <div id="app" aria-live="polite"></div>
-<noscript><p style="padding:2rem;color:#fff">このサイトは JavaScript を使用します。</p></noscript>
+<noscript><p style="padding:2rem">このサイトは JavaScript を使用します。</p></noscript>
 <script src="/static/js/core.js"></script>
 <script src="/static/js/memviz.js"></script>
 <script src="/static/js/interp.js"></script>

@@ -3,7 +3,7 @@
  * ========================================================================= */
 (function () {
   'use strict';
-  const { h, codeBlock, store, toast, icon } = U;
+  const { h, codeBlock, store, toast, icon, face, moodOf, confettiAt } = U;
   const app = document.getElementById('app');
   const page = document.body.dataset.page;
   const unitId = document.body.dataset.unit;
@@ -63,25 +63,25 @@
   function heroMem() {
     const W = 520, H = 420, cw = 52, ch = 46, x0 = 60, y0 = 40;
     let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="ポインタ p が変数 a を指すメモリ図">`;
-    s += `<defs><marker id="hah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ff4f7b"/></marker>
+    s += `<defs><marker id="hah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#f2467f"/></marker>
       <linearGradient id="fade" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
       <mask id="m"><rect width="${W}" height="${H}" fill="url(#fade)"/></mask></defs><g mask="url(#m)">`;
     for (let r = 0; r < 8; r++) {
-      s += `<text x="${x0 - 12}" y="${y0 + r * ch + 28}" text-anchor="end" class="hm-t" font-size="11" fill-opacity=".45" style="fill:#ffbf47">${100 + r * 8}</text>`;
+      s += `<text x="${x0 - 12}" y="${y0 + r * ch + 28}" text-anchor="end" class="hm-t" font-size="11" fill-opacity=".45" style="fill:#d97f00">${100 + r * 8}</text>`;
       for (let c = 0; c < 8; c++) s += `<rect class="hm-cell" x="${x0 + c * cw}" y="${y0 + r * ch}" width="${cw}" height="${ch}"/>`;
     }
     s += '</g>';
     // a : int at 100 (4 bytes = 4 cells)
     s += `<rect class="hm-cell v" x="${x0}" y="${y0}" width="${cw * 4}" height="${ch}" rx="6"/>`;
-    s += `<text x="${x0 + 14}" y="${y0 - 10}" class="hm-t" font-size="13" style="fill:#4fd6e6">int a</text>`;
-    s += `<text x="${x0 + cw * 2}" y="${y0 + 30}" class="hm-t" font-size="20" font-weight="700" text-anchor="middle" style="fill:#4fd6e6">123</text>`;
+    s += `<text x="${x0 + 14}" y="${y0 - 10}" class="hm-t" font-size="13" style="fill:#1497ab">int a</text>`;
+    s += `<text x="${x0 + cw * 2}" y="${y0 + 30}" class="hm-t" font-size="20" font-weight="700" text-anchor="middle" style="fill:#1497ab">123</text>`;
     // p : int* at 116 (row 2) 8 bytes
     const py = y0 + ch * 2;
     s += `<rect class="hm-cell p" x="${x0}" y="${py}" width="${cw * 8}" height="${ch}" rx="6"/>`;
-    s += `<text x="${x0 + 14}" y="${py - 10}" class="hm-t" font-size="13" style="fill:#ff4f7b">int *p</text>`;
-    s += `<text x="${x0 + cw * 4}" y="${py + 30}" class="hm-t" font-size="20" font-weight="700" text-anchor="middle" style="fill:#ff4f7b">100 <tspan font-size="12" fill-opacity=".6">(番地)</tspan></text>`;
+    s += `<text x="${x0 + 14}" y="${py - 10}" class="hm-t" font-size="13" style="fill:#f2467f">int *p</text>`;
+    s += `<text x="${x0 + cw * 4}" y="${py + 30}" class="hm-t" font-size="20" font-weight="700" text-anchor="middle" style="fill:#f2467f">100 <tspan font-size="12" fill-opacity=".6">(番地)</tspan></text>`;
     s += `<path class="hm-arrow" d="M${x0 + cw * 8} ${py + ch / 2} C ${x0 + cw * 8 + 70} ${py + ch / 2}, ${x0 + cw * 4 + 260} ${y0 + ch / 2}, ${x0 + cw * 4 + 6} ${y0 + ch / 2}" marker-end="url(#hah)"/>`;
-    s += `<text x="${x0 + cw * 5}" y="${y0 + ch * 1.42}" class="hm-t" font-size="13" style="fill:#ff4f7b">*p は a そのもの</text>`;
+    s += `<text x="${x0 + cw * 5}" y="${y0 + ch * 1.42}" class="hm-t" font-size="13" style="fill:#f2467f">*p は a そのもの</text>`;
     s += `<text x="${x0}" y="${py + ch + 44}" class="hm-t" font-size="12" fill-opacity=".55">p = &amp;a;   /* a の番地を p に */</text>`;
     s += `<text x="${x0}" y="${py + ch + 66}" class="hm-t" font-size="12" fill-opacity=".55">*p = 123;  /* p が指す先 (a) に書く */</text>`;
     s += '</svg>';
@@ -89,34 +89,52 @@
   }
 
   /* ================= ホーム ================= */
+  const UNIT_DECO = { b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--sky)', '?'] };
+  function bounceWord(word, cls) {
+    return h('span' + (cls || ''), word.split('').map((ch, i) => h('span.w', { style: { '--d': i } }, ch === ' ' ? '\u00a0' : ch)));
+  }
   function renderHome() {
     document.title = 'PIII LAB — プログラミング実習Ⅲ';
-    const list = h('div');
+    const list = h('div.unit-list');
     const units = window.UNIT_INDEX || [];
     units.forEach((u) => {
       const ready = !!u.ready;
       const pct = ready ? unitScore(u.id) : 0;
-      list.appendChild(h(ready ? 'a.unit-row' : 'div.unit-row.soon', ready ? { href: '/' + u.id } : {},
+      const deco = UNIT_DECO[u.id] || ['var(--sky)', '{ }'];
+      list.appendChild(h(ready ? 'a.unit-card' : 'div.unit-card.soon', Object.assign({ style: { '--uc': deco[0] } }, ready ? { href: '/' + u.id } : {}),
         h('div.uid', u.id.toUpperCase()),
-        h('div', h('div.ut', u.title), h('div.ud', u.desc)),
-        h('div.meta', ready ? h('span.chip' + (pct === 100 ? '.ok' : ''), pct + '% 完了') : h('span.chip', u.note || '準備中')),
-        h('div.go', ready ? icon('arrow') : h('span.c-mute', '·'))));
+        h('div.uemoji', { 'aria-hidden': 'true' }, deco[1]),
+        h('div.ut', u.title),
+        h('div.ud', u.desc),
+        h('div.uf',
+          ready ? h('div.ubar', { role: 'progressbar', 'aria-valuenow': pct, 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-label': u.id.toUpperCase() + ' の進み具合' }, h('i', { style: { width: pct + '%' } })) : h('span.chip', u.note || '準備中'),
+          ready ? h('span.chip' + (pct === 100 ? '.ok' : ''), pct + '%') : null,
+          h('div.go', ready ? icon('arrow') : h('span.c-mute', '…')))));
     });
+    const r = units.filter((u) => u.ready);
+    const nx = r.find((u) => unitScore(u.id) < 100) || r[0];
+    const started = r.some((u) => unitScore(u.id) > 0);
+    const cast = h('div.home-cast',
+      h('div.hc-card', h('div.hc-face', { html: face('r', 'think') }), h('div.hc-n', h('b', 'リョウガ'), '受講生'), h('div.hc-t', 'ポインタって, 結局なにを指してるの…?')),
+      h('div.hc-card', h('div.hc-face', { html: face('s', 'happy') }), h('div.hc-n', h('b', 'サカイ'), 'TA'), h('div.hc-t', 'メモリの図で 1 行ずつ見ればすぐ分かるよ。いっしょに追ってみよう!')),
+      h('div.hc-card.mem', heroMem()));
     app.append(
       topbar(),
       h('section.home-hero',
         h('div', { style: { position: 'relative', zIndex: 2 } },
           h('div.eyebrow', 'Programming Practice III — 2026'),
-          h('h1', 'Learn by', h('br'), 'Tracing.', h('span.jp', 'プログラミング実習Ⅲ')),
-          h('p.home-lead', 'コードが「メモリの上で何をしているか」を, 1 行ずつ目で見て理解する。予想して, 動かして, 自分で書く。課題とレポートまで, このページで完結します。'),
-          h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
-            (() => { const r = units.filter((u) => u.ready); const nx = r.find((u) => unitScore(u.id) < 100) || r[0]; const started = r.some((u) => unitScore(u.id) > 0); return h('a.btn.ptr', { href: '/' + nx.id }, (started ? '続きから: ' : '') + nx.id.toUpperCase() + ' ' + nx.title + (started ? '' : ' から始める'), icon('arrow')); })(),
+          h('h1', bounceWord('Learn by'), h('br'), bounceWord('Tracing.', '.hl'), h('span.jp', 'プログラミング実習Ⅲ', h('i', 'C言語'))),
+          h('p.home-lead', 'コードが「メモリの上で何をしているか」を, 1 行ずつ目で見て理解する。サカイさんとリョウガさんの会話を読みながら, 予想して, 動かして, 自分で書く。課題とレポートまで, このページで完結します。'),
+          h('div', { style: { display: 'flex', gap: '12px', flexWrap: 'wrap' } },
+            h('a.btn.ptr', { href: '/' + nx.id }, (started ? '続きから: ' : '') + nx.id.toUpperCase() + ' ' + nx.title + (started ? '' : ' から始める'), icon('arrow')),
             h('a.btn', { href: '#units' }, '単元一覧'))),
-        h('div.hero-art', heroMem())),
+        h('div.hero-art', cast),
+        h('div.stickers', { 'aria-hidden': 'true' }, ['&', '*', '{ }', '0x64', '→', ';'].map((t, i) => h('span.stk.stk' + i, t)))),
+      h('div.marquee-wrap', { 'aria-hidden': 'true' }, h('div.marquee', h('div.mq-track', [0, 1].map(() => h('span', ['予想する', '動かす', 'メモリで見る', '自分で書く', 'diff で確かめる', 'レポートにまとめる'].map((w, i) => h('b', { class: 'mq' + (i % 3) }, w))))))),
       h('section.units#units',
-        h('div.units-head', h('h2', 'Units'), h('span.c-mute.mono', { style: { fontSize: '12px' } }, units.filter((u) => u.ready).length + ' / ' + units.length + ' 公開中')),
+        h('div.units-head', h('h2', 'Units'), h('span.chip', units.filter((u) => u.ready).length + ' / ' + units.length + ' 公開中')),
         list),
-      h('footer.foot', h('span', 'PIII LAB — 学習用の非公式サイトです。課題の正式な仕様は配布資料に従ってください。'), h('span.mono', 'C → Memory → Understanding')));
+      h('footer.foot', h('span', 'PIII LAB — 学習用の非公式サイトです。課題の正式な仕様は配布資料に従ってください。'), h('span', 'C → Memory → Understanding')));
   }
 
   /* ================= 単元ページ ================= */
@@ -129,7 +147,13 @@
     app.append(topbar({ crumb: unitId.toUpperCase() + ' ' + U0.title, progress: true, menu: true }), h('div.unit-wrap', rail, main));
 
     // ヒーロー
-    main.appendChild(U0.hero(heroMem));
+    const heroEl = U0.hero(heroMem);
+    const art = heroEl.querySelector('.hero-mem');
+    if (art) {
+      const card = h('div.hero-mem-card', h('div.hm-face.r', { html: face('r', 'wow') }), h('div.hm-face.s', { html: face('s', 'happy') }));
+      art.replaceWith(card); card.insertBefore(art, card.firstChild);
+    }
+    main.appendChild(heroEl);
 
     // 章
     const navItems = [];
@@ -234,8 +258,8 @@
       const c = CAST[who] || CAST.s;
       const prev = k > 0 ? lines[k - 1][0] : null;
       const cont = prev === who;
-      wrap.appendChild(h('div.tk.tk-' + who + (cont ? '.cont' : ''), { style: { '--i': k } },
-        h('div.tk-av', { 'aria-hidden': 'true' }, cont ? '' : c.mark),
+      wrap.appendChild(h('div.tk.sp-' + who + (cont ? '.cont' : ''), { style: { '--i': k } },
+        h('div.tk-av', { 'aria-hidden': 'true', html: cont ? '' : face(who, moodOf(who, txt)) }),
         h('div.tk-body', cont ? null : h('div.tk-name', h('b', c.name), h('span', c.role)), h('div.tk-bub', { html: txt }))));
     });
     return wrap;
@@ -284,6 +308,7 @@
       const actual = r.error ? 'エラー: ' + r.error.msg : r.out;
       verdictHost.innerHTML = '';
       const vok = ok === null ? normalize(user) === normalize(actual) : ok;
+      setTimeout(() => { if (vok) confettiAt(verdictHost, 28); }, 60);
       verdictHost.appendChild(h('div.verdict.' + (vok ? 'ok' : 'ng'),
         h('h6', vok ? '正解!' : '惜しい — 実際の結果はこちら'),
         h('pre', actual.trim() || '(出力なし)'),
@@ -587,7 +612,7 @@
       banner.appendChild(h('div.result-banner.' + (ok ? 'ok' : allOk && verdict ? 'info' : 'ng'), ok ? '✓ ' + (t.tests ? 'diff なし — 期待値と一致しました' : '要件を満たしています') : allOk && verdict ? '△ ' + verdict.msg : '✗ 期待値と違う箇所があります'));
       if (ok && verdict && verdict.msg) banner.appendChild(h('div.c-mute', { style: { fontSize: '12.5px', marginTop: '6px' }, html: verdict.msg }));
       const p = prog.get(unitId);
-      if (ok) { if (p.tasks[t.id] !== 'done') toast(t.label + ' クリア!'); prog.mark(unitId, 'tasks', t.id, 'done'); }
+      if (ok) { if (p.tasks[t.id] !== 'done') { toast(t.label + ' クリア!'); setTimeout(() => confettiAt(banner, 46), 60); } prog.mark(unitId, 'tasks', t.id, 'done'); }
       else if (p.tasks[t.id] !== 'done') prog.mark(unitId, 'tasks', t.id, 'try');
       if (t.observe && ok) obsFacts.innerHTML = t.observe(outs);
       store.set('lastout:' + unitId + ':' + t.id, outs.map((r) => r.out));
