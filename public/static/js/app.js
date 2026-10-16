@@ -93,6 +93,30 @@
   function bounceWord(word, cls) {
     return h('span' + (cls || ''), word.split('').map((ch, i) => h('span.w', { style: { '--d': i } }, ch === ' ' ? '\u00a0' : ch)));
   }
+  function homeHow(units) {
+    const ready = units.filter((u) => u.ready);
+    let nTask = 0, nPred = 0, nTalk = 0;
+    ready.forEach((u) => { nTask += u.nTask || 0; nPred += u.nPred || 0; });
+    void nTalk;
+    const sec = h('section.how#how',
+      h('div.how-head', h('div.eyebrow', 'How it works'), h('h2.k-big', '読む → 予想 → 動かす → 書く。'),
+        h('p.how-lead', 'このサイトの 1 章は, いつも同じリズムで進みます。説明を読み飛ばしても大丈夫。手を動かして, メモリの図で確かめるのが一番の近道です。')),
+      Infog.make({ kind: 'pipeline', tag: 'LOOP', title: '1 章の流れ', steps: [
+        { icon: '💬', label: '対話で読む', sub: 'サカイ × リョウガ', color: 'mint' },
+        { icon: '?', label: '予想する', sub: '答えを先に考える', color: 'lemon' },
+        { icon: '▶', label: 'ステップ実行', sub: 'メモリの図で確認', color: 'pink' },
+        { icon: '✎', label: '自分で書く', sub: '課題ラボ + diff', color: 'lav' },
+        { icon: '📄', label: 'レポート', sub: '自動で組み立て', color: 'sky' },
+      ] }),
+      Infog.make({ kind: 'stats', tag: 'NUMBERS', title: '今このサイトで学べること', items: [
+        { value: ready.length, label: '公開中の単元', color: 'pink' },
+        { value: nTask, label: 'ページ上で解ける課題', color: 'ok' },
+        { value: nPred, label: '予想問題', color: 'addr' },
+        { value: 100, suffix: '%', label: 'ブラウザだけで完結', color: 'vio' },
+      ] }));
+    const hb = sec.querySelector('.k-big'); Kinetic.split(hb); Kinetic.watch(hb);
+    return sec;
+  }
   function renderHome() {
     document.title = 'PIII LAB — プログラミング実習Ⅲ';
     const list = h('div.unit-list');
@@ -123,7 +147,8 @@
       h('section.home-hero',
         h('div', { style: { position: 'relative', zIndex: 2 } },
           h('div.eyebrow', 'Programming Practice III — 2026'),
-          h('h1', bounceWord('Learn by'), h('br'), bounceWord('Tracing.', '.hl'), h('span.jp', 'プログラミング実習Ⅲ', h('i', 'C言語'))),
+          h('h1.k-hero', bounceWord('Learn by'), h('br'), bounceWord('Tracing.', '.hl'), h('span.jp', 'プログラミング実習Ⅲ', h('i', 'C言語'))),
+          h('div.k-rotline', h('span', 'C のコードを'), Kinetic.rotator(['予想する', '動かす', 'メモリで見る', '自分で書く', 'diff で確かめる']), h('span', '。')),
           h('p.home-lead', 'コードが「メモリの上で何をしているか」を, 1 行ずつ目で見て理解する。サカイさんとリョウガさんの会話を読みながら, 予想して, 動かして, 自分で書く。課題とレポートまで, このページで完結します。'),
           h('div', { style: { display: 'flex', gap: '12px', flexWrap: 'wrap' } },
             h('a.btn.ptr', { href: '/' + nx.id }, (started ? '続きから: ' : '') + nx.id.toUpperCase() + ' ' + nx.title + (started ? '' : ' から始める'), icon('arrow')),
@@ -131,8 +156,9 @@
         h('div.hero-art', cast),
         h('div.stickers', { 'aria-hidden': 'true' }, ['&', '*', '{ }', '0x64', '→', ';'].map((t, i) => h('span.stk.stk' + i, t)))),
       h('div.marquee-wrap', { 'aria-hidden': 'true' }, h('div.marquee', h('div.mq-track', [0, 1].map(() => h('span', ['予想する', '動かす', 'メモリで見る', '自分で書く', 'diff で確かめる', 'レポートにまとめる'].map((w, i) => h('b', { class: 'mq' + (i % 3) }, w))))))),
+      homeHow(units),
       h('section.units#units',
-        h('div.units-head', h('h2', 'Units'), h('span.chip', units.filter((u) => u.ready).length + ' / ' + units.length + ' 公開中')),
+        h('div.units-head', (() => { const e = h('h2', 'Units'); Kinetic.split(e); Kinetic.watch(e); return e; })(), h('span.chip', units.filter((u) => u.ready).length + ' / ' + units.length + ' 公開中')),
         list),
       h('footer.foot', h('span', 'PIII LAB — 学習用の非公式サイトです。課題の正式な仕様は配布資料に従ってください。'), h('span', 'C → Memory → Understanding')));
   }
@@ -141,7 +167,7 @@
   function renderUnit() {
     const U0 = window.UNITS[unitId];
     if (!U0) { app.textContent = '単元が見つかりません'; return; }
-    applyTalk(U0, (window.TALK || {})[unitId]);
+    applyTalk(U0, (window.TALK || {})[unitId], (window.INFOG || {})[unitId]);
     const rail = h('nav.rail', { 'aria-label': '目次' });
     const main = h('main.main');
     app.append(topbar({ crumb: unitId.toUpperCase() + ' ' + U0.title, progress: true, menu: true }), h('div.unit-wrap', rail, main));
@@ -154,13 +180,18 @@
       art.replaceWith(card); card.insertBefore(art, card.firstChild);
     }
     main.appendChild(heroEl);
+    heroKinetic(heroEl, U0);
 
     // 章
     const navItems = [];
     U0.chapters.forEach((c) => {
       const sec = h('section.chap#' + c.id, { 'aria-labelledby': c.id + '-h' },
         h('div.chap-head.rv', h('div.chap-num', c.num), h('div', h('div.chap-kicker', c.kicker), h('h2#' + c.id + '-h', c.title), c.lead ? h('p.chap-lead', c.lead) : null)));
+      const h2 = sec.querySelector('h2'); Kinetic.split(h2); Kinetic.watch(h2);
+      Kinetic.split(sec.querySelector('.chap-kicker')); Kinetic.watch(sec.querySelector('.chap-kicker'));
+      Kinetic.ticker(sec, (c.navTitle || c.title).replace(/<[^>]+>/g, ''), { dist: 900, off: 120, rep: 5 });
       if (c.talk) { const tk = h('div.blk', talk(c.talk)); tk.classList.add('rv'); sec.appendChild(tk); }
+      if (c.infTop) { const ib = block({ type: 'infog', spec: c.infTop }); if (ib) { ib.classList.add('rv'); sec.appendChild(ib); } }
       c.blocks.forEach((b) => { const el = block(b, c); if (el) { el.classList.add('rv'); sec.appendChild(el); } });
       main.appendChild(sec);
       navItems.push({ group: c.group, id: c.id, n: c.num, t: c.navTitle || c.title });
@@ -191,10 +222,30 @@
     if (location.hash.startsWith('#task-')) setTimeout(() => openTask(location.hash.slice(6), true), 300);
   }
 
+  /* ---------------- Kinetic: 単元ヒーロー ---------------- */
+  function heroKinetic(el, U0) {
+    const h1 = el.querySelector('h1');
+    if (h1) { h1.querySelectorAll('em').forEach((e) => e.classList.add('k-block')); Kinetic.split(h1); Kinetic.watch(h1); }
+    const tag = el.querySelector('.tag'); if (tag) { tag.classList.add('k-fade'); Kinetic.watch(tag); }
+    el.querySelectorAll('.u-stats b').forEach((b) => {
+      const m = /^(\d+)(\+(\d+))?$/.exec(b.textContent.trim());
+      if (!m) return;
+      b.textContent = '';
+      const a = h('span', { 'data-count': m[1] }); b.appendChild(a);
+      if (m[3]) { b.appendChild(document.createTextNode('+')); b.appendChild(h('span', { 'data-count': m[3] })); }
+    });
+    Kinetic.autoCount(el);
+    el.querySelectorAll('.btn').forEach((b) => Kinetic.magnet(b));
+    const card = el.querySelector('.hero-mem-card'); if (card) Kinetic.tilt(card, 7);
+    // 進捗リング (単元全体)
+    void U0;
+  }
+
   /* ---------------- ブロック ---------------- */
   function block(b) {
     switch (b.type) {
       case 'prose': return h('div.prose.blk', { html: b.html });
+      case 'infog': { const el = window.Infog && Infog.make(b.spec); return el ? h('div.blk', el) : null; }
       case 'talk': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, talk(b.lines));
       case 'point': return h('div.blk', h('div.point', h('div.pn', 'POINT ' + b.n), h('div', h('div.pt', { html: b.title }), b.sub ? h('div.ps', { html: b.sub }) : null)));
       case 'callout': return h('div.blk', h('div.callout.' + (b.kind || 'info'), { html: b.html }));
@@ -223,12 +274,13 @@
                  replace: { blockIndex: lines },    ← 説明文ブロックを対話に置き換え
                  after:   { blockIndex: lines },    ← ブロックの後に対話を挟む
                  explain: { predictId: lines } } }  ← 予想問題の解説を対話に */
-  function applyTalk(U0, T) {
-    if (!T || U0._talked) return;
+  function applyTalk(U0, T, IG) {
+    if (U0._talked) return;
     U0._talked = true;
+    T = T || {}; IG = IG || {};
     U0.chapters.forEach((c) => {
-      const t = T[c.id];
-      if (!t) return;
+      const t = T[c.id] || {}, ig = IG[c.id] || {};
+      if (ig.top) c.infTop = ig.top;
       if (t.talk) { c.talk = t.talk; c.lead = null; }
       const nb = [];
       c.blocks.forEach((b, i) => {
@@ -239,6 +291,7 @@
           if (b.type === 'mistakes' && t.fix) b.items.forEach((it, k) => { if (t.fix[k]) it.fix = t.fix[k]; });
           nb.push(b);
         }
+        if (ig.at && ig.at[i]) [].concat(ig.at[i]).forEach((sp) => nb.push({ type: 'infog', spec: sp }));
         if (t.after && t.after[i]) nb.push({ type: 'talk', lines: t.after[i] });
       });
       c.blocks = nb;
@@ -776,4 +829,7 @@
 
   /* ---------------- 起動 ---------------- */
   if (page === 'home') renderHome(); else renderUnit();
+  Kinetic.cursor();
+  Kinetic.curtain(page === 'home' ? 'PIII LAB' : (unitId || '').toUpperCase() + ' ' + ((window.UNITS[unitId] || {}).title || ''));
+  document.querySelectorAll('.task-tile, .cheat-card, .unit-card').forEach((t) => Kinetic.tilt(t, 8));
 })();

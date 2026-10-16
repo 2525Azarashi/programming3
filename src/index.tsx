@@ -27,6 +27,8 @@ const shell = (opts: { page: string; unit?: string; title: string; desc: string;
 <div id="app" aria-live="polite"></div>
 <noscript><p style="padding:2rem">このサイトは JavaScript を使用します。</p></noscript>
 <script src="/static/js/core.js"></script>
+<script src="/static/js/kinetic.js"></script>
+<script src="/static/js/infog.js"></script>
 <script src="/static/js/memviz.js"></script>
 <script src="/static/js/interp.js"></script>
 <script src="/static/js/shell.js"></script>
@@ -36,7 +38,8 @@ ${opts.unit ? `<script src="/static/js/units/${opts.unit}-data.js"></script>
 <script src="/static/js/units/${opts.unit}-tasks.js"></script>
 ${(opts.extra ?? []).map((x) => `<script src="/static/js/units/${opts.unit}-${x}.js"></script>`).join('\n')}
 <script src="/static/js/units/${opts.unit}.js"></script>
-<script src="/static/js/units/${opts.unit}-talk.js"></script>` : ''}
+<script src="/static/js/units/${opts.unit}-talk.js"></script>
+<script src="/static/js/units/infog-data.js"></script>` : ''}
 <script src="/static/js/app.js"></script>
 </body>
 </html>`

@@ -58,3 +58,13 @@
 - ホーム: 跳ねる見出し, キャラ紹介カード, 浮かぶステッカー, マーキー, 単元カード (進捗バー)
 - ターミナル / コンソールだけは夜色 (#3b2738) の “おもちゃパソコン”
 - `prefers-reduced-motion` で全アニメ停止
+
+## Kinetic Typography / UI アニメーション / インフォグラフィック
+- `public/static/js/kinetic.js` (`window.Kinetic`)
+  - `split(el)` 文字分割 → `watch(el)` で画面内に入ると 1 文字ずつバネで登場 (章見出し・単元タイトル・How 見出し)
+  - スクロール速度で見出しが傾く (`--skew`), 章ごとの巨大アウトライン文字がスクロールで横に流れる (`ticker`)
+  - `rotator` 回転ワード (ホーム), `countUp/autoCount` 数字のカウントアップ, `magnet` / `tilt` / リップル / カーソルフォロワー / 開幕カーテン
+- `public/static/js/infog.js` (`window.Infog.make(spec)`) — 画面に入ると描かれるインフォグラフィック
+  - `bars` 棒グラフ / `layout` bit 配置 / `pipeline` 工程図 (パケットが流れる) / `histo` 乱数シミュレーション / `donut` / `memstrip` 番地の物差し + ポインタの矢印 / `stats` / `compare2`
+- 配置データ: `public/static/js/units/infog-data.js` → `window.INFOG[unit][chapId] = { top: spec, at: { blockIndex: spec } }`
+- `prefers-reduced-motion` ではすべて静止表示
