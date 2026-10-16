@@ -68,3 +68,5 @@
   - `bars` 棒グラフ / `layout` bit 配置 / `pipeline` 工程図 (パケットが流れる) / `histo` 乱数シミュレーション / `donut` / `memstrip` 番地の物差し + ポインタの矢印 / `stats` / `compare2`
 - 配置データ: `public/static/js/units/infog-data.js` → `window.INFOG[unit][chapId] = { top: spec, at: { blockIndex: spec } }`
 - `prefers-reduced-motion` ではすべて静止表示
+- 課題ラボ: 進捗ダッシュボード (リング + カウンタ + 課題ストリップ) がクリアのたびにアニメーション更新
+- 目次: 章ごとの読了ゲージ (スクロール連動, 読了で ✓) / ページ遷移ワイプ / タスク切替・カードの段階登場

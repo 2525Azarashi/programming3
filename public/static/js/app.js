@@ -27,6 +27,7 @@
   }
   function refreshProgress() {
     if (!unitId) return;
+    if (labDash.upd) labDash.upd();
     const pct = unitScore(unitId);
     document.querySelectorAll('.ring').forEach((r) => r.style.setProperty('--p', pct));
     document.querySelectorAll('.pct').forEach((r) => (r.textContent = pct + '%'));
@@ -216,6 +217,14 @@
       });
     }, { rootMargin: '-40% 0px -55% 0px' });
     main.querySelectorAll('section.chap').forEach((s) => io.observe(s));
+    // 目次: 各章の読了ゲージ
+    const railLinks = [...rail.querySelectorAll('a[data-nav]')].map((a) => [a, document.getElementById(a.dataset.nav)]);
+    railLinks.forEach(([a]) => a.appendChild(h('i.rg')));
+    const railUpd = () => {
+      const vh = innerHeight;
+      railLinks.forEach(([a, sec]) => { if (!sec) return; const r = sec.getBoundingClientRect(); const p = Math.max(0, Math.min(1, (vh * 0.6 - r.top) / Math.max(1, r.height))); a.style.setProperty('--rp', p.toFixed(3)); a.classList.toggle('read', p >= 0.98); });
+    };
+    addEventListener('scroll', railUpd, { passive: true }); railUpd();
     const rvio = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); rvio.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' });
     main.querySelectorAll('.rv').forEach((el) => rvio.observe(el));
     refreshProgress();
@@ -513,6 +522,34 @@
   let labApi = null;
   function openTask(id, scroll) { if (labApi) labApi.open(id); if (scroll) document.getElementById('lab').scrollIntoView({ behavior: 'smooth' }); }
 
+  /* 課題ラボの進捗ダッシュボード (インフォグラフィック) */
+  function labDash(U0) {
+    const req = U0.tasks.filter((t) => !t.optional), opt = U0.tasks.filter((t) => t.optional);
+    const R = 52, C = 2 * Math.PI * R;
+    const ring = h('div.ld-ring', { html: `<svg viewBox="0 0 130 130"><circle cx="65" cy="65" r="${R}" class="ld-bg"/><circle cx="65" cy="65" r="${R}" class="ld-fg" style="stroke-dasharray:0 ${C}"/></svg>` }, h('div.ld-c', h('b', '0'), h('small', '/ ' + req.length + ' 必須')));
+    const cnt = (lab, cls) => { const b = h('b', '0'); return [h('div.ld-k.' + cls, h('small', lab), b), b]; };
+    const [kDone, bDone] = cnt('クリア', 'ok'), [kTry, bTry] = cnt('挑戦中', 'try'), [kRest, bRest] = cnt('未着手', 'rest'), [kOpt, bOpt] = cnt('オプション', 'opt');
+    const strip = h('div.ld-strip', U0.tasks.map((t, k) => h('i', { 'data-id': t.id, style: { '--k': k }, title: t.label + ' ' + t.short }, h('span', t.label))));
+    const msg = h('div.ld-msg');
+    const el = h('div.lab-dash.k-watch', ring, h('div.ld-main', h('div.ld-ks', kDone, kTry, kRest, kOpt), strip, msg));
+    let last = -1;
+    function upd() {
+      const p = prog.get(unitId);
+      const st = (t) => p.tasks[t.id];
+      const d = req.filter((t) => st(t) === 'done').length, tr = req.filter((t) => st(t) === 'try').length;
+      const od = opt.filter((t) => st(t) === 'done').length;
+      const fg = el.querySelector('.ld-fg');
+      fg.style.strokeDasharray = (d / Math.max(1, req.length) * C).toFixed(1) + ' ' + C; fg.style.opacity = d ? 1 : 0;
+      if (d !== last) { Kinetic.countUp(el.querySelector('.ld-c b'), d, { from: Math.max(0, last), dur: 700 }); if (last >= 0 && d > last) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } last = d; }
+      bDone.textContent = d; bTry.textContent = tr; bRest.textContent = req.length - d - tr; bOpt.textContent = od + '/' + opt.length;
+      strip.querySelectorAll('i').forEach((i) => { const v = p.tasks[i.dataset.id]; i.className = v === 'done' ? 'done' : v === 'try' ? 'try' : ''; });
+      msg.innerHTML = d === req.length ? '🎉 <b>必須課題コンプリート!</b> レポートを作成しよう。' : d === 0 ? 'まずは <b>' + req[0].label + '</b> から。テストが通るとここが埋まっていくよ。' : 'あと <b>' + (req.length - d) + '</b> 問。この調子!';
+    }
+    labDash.upd = upd;
+    setTimeout(upd, 0);
+    return el;
+  }
+
   function lab() {
     const U0 = window.UNITS[unitId];
     const tiles = h('div.task-grid');
@@ -526,14 +563,15 @@
       cur = id;
       [...tiles.children].forEach((x) => x.classList.toggle('on', x.dataset.id === id));
       host.innerHTML = '';
-      host.appendChild(taskView(t));
+      const tv = taskView(t); tv.classList.add('task-enter'); host.appendChild(tv);
       if (!silent) history.replaceState(null, '', '#task-' + id);
       refreshProgress();
     }
     labApi = { open };
     setTimeout(() => open(U0.tasks[0].id, true), 0);
     void cur;
-    return h('div', tiles, host);
+    [...tiles.children].forEach((t, k) => t.style.setProperty('--k', k));
+    return h('div', labDash(U0), tiles, host);
   }
 
   function loadCM(cb) {
@@ -830,6 +868,16 @@
   /* ---------------- 起動 ---------------- */
   if (page === 'home') renderHome(); else renderUnit();
   Kinetic.cursor();
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href]');
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey || a.target === '_blank') return;
+    const u = new URL(a.href, location.href);
+    if (u.origin !== location.origin || u.pathname === location.pathname || Kinetic.RM) return;
+    e.preventDefault();
+    document.body.classList.add('page-leave');
+    setTimeout(() => { location.href = u.href; }, 420);
+  });
+  addEventListener('pageshow', () => document.body.classList.remove('page-leave'));
   Kinetic.curtain(page === 'home' ? 'PIII LAB' : (unitId || '').toUpperCase() + ' ' + ((window.UNITS[unitId] || {}).title || ''));
   document.querySelectorAll('.task-tile, .cheat-card, .unit-card').forEach((t) => Kinetic.tilt(t, 8));
 })();

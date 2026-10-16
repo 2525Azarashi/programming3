@@ -164,3 +164,38 @@
     },
   };
 })();
+/* 追加分 */
+(function () {
+  'use strict';
+  const I = window.INFOG;
+  I.b2.header = { top: { kind: 'compare2', tag: 'INCLUDE', title: '<code class="ic">&lt; &gt;</code> と <code class="ic">" "</code> — どこを探す?',
+    lanes: [
+      { title: '<code class="ic">#include &lt;stdio.h&gt;</code>', color: 'sky', steps: ['<b>システム</b>のヘッダ置き場を探す', '/usr/include など', 'printf・scanf などの宣言'], result: 'すでに<b>用意されたもの</b>' },
+      { title: '<code class="ic">#include "ave5.h"</code>', color: 'lav', steps: ['<b>同じフォルダ</b>から探す', '見つからなければシステムへ', '自作関数のプロトタイプ'], result: '<b>自分で作ったもの</b>' },
+    ] } };
+  I.b2.summary = { top: { kind: 'stats', tag: 'RECAP', title: 'B2 をふりかえる', items: [
+    { value: 3, label: '関数の顔 (宣言・定義・呼び出し)', color: 'lemon' },
+    { value: 2, label: 'gcc の段階 (コンパイル → リンク)', color: 'pink' },
+    { value: 16, suffix: 'B', label: 'point_t 1 個 (double × 2)', color: 'mint' },
+    { value: 7, label: 'サイコロ 2 個の和で一番多い目', color: 'vio' },
+  ] } };
+  I.b1.summary = { top: { kind: 'stats', tag: 'RECAP', title: 'B1 をふりかえる', items: [
+    { value: 32, suffix: 'bit', label: 'int / float の大きさ', color: 'mint' },
+    { value: 3, label: '標準ストリーム (in / out / err)', color: 'val' },
+    { value: 0, label: 'diff が何も出さない = 一致', color: 'ok' },
+    { value: 1, label: '文字列の末尾に足される \\0 の数', color: 'pink' },
+  ] } };
+  I.b3.summary = { top: { kind: 'stats', tag: 'RECAP', title: 'B3 をふりかえる', items: [
+    { value: 2, label: '新しい演算子 <code class="ic">&amp;</code> と <code class="ic">*</code>', color: 'pink' },
+    { value: 8, suffix: 'B', label: 'ポインタ 1 個の大きさ (64 bit)', color: 'sky' },
+    { value: 4, suffix: 'B', label: 'int 配列で x+1 が進む量', color: 'mint' },
+    { value: 12, label: 'ページ上で解ける課題', color: 'ok' },
+  ] } };
+  I.b3.func = I.b3.func || {};
+  I.b3.func.at = { 2: { kind: 'memstrip', tag: 'CALL', title: '<code class="ic">func(pa)</code> — コピーされるのは<b>番地</b>', base: 100, cell: 4,
+    vars: [
+      { name: 'a', type: 'int', size: 4, val: '456', color: 'mint' },
+      { name: 'pa', type: 'int *', size: 8, val: '100', color: 'pink', ptrTo: 'a' },
+      { name: 'pa′', type: 'func の int *', size: 8, val: '100', color: 'peach', ptrTo: 'a' },
+    ], note: 'main の pa と func の pa は<b>別の変数</b>だが, 中身は同じ番地 100。だから両方とも a を指す。' } };
+})();

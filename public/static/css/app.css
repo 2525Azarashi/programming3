@@ -1471,3 +1471,68 @@ table.mini th, table.mini td { border-color: rgba(59,39,56,.2); }
   .ig-mem { padding-left: 12px; padding-right: 12px; }
   .k-rotline { font-size: 20px; }
 }
+
+/* ===== 課題ラボ ダッシュボード ===== */
+.lab-dash { display: grid; grid-template-columns: 150px 1fr; gap: 24px; align-items: center; background: #fff; border: var(--bw) solid var(--ink); border-radius: 26px; box-shadow: 6px 6px 0 var(--ink); padding: 18px 22px; margin-bottom: 22px; }
+.lab-dash.bump { animation: dashBump .7s var(--spring); }
+@keyframes dashBump { 30% { transform: scale(1.025) rotate(-.4deg); } }
+.ld-ring { position: relative; width: 150px; height: 150px; }
+.ld-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ld-bg { fill: none; stroke: #f4ecf0; stroke-width: 18; }
+.ld-fg { fill: none; stroke: var(--ok); stroke-width: 18; stroke-linecap: round; transition: stroke-dasharray 1s var(--spring); filter: drop-shadow(0 0 0 var(--ink)); }
+.ld-c { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.ld-c b { font-family: var(--f-disp); font-size: 46px; line-height: 1; }
+.ld-c small { font-weight: 700; color: var(--ink-2); font-size: 12px; }
+.ld-ks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.ld-k { border: var(--bw) solid var(--ink); border-radius: 16px; padding: 6px 12px; box-shadow: var(--sh-s); }
+.ld-k small { display: block; font-size: 11px; font-weight: 900; color: var(--ink-2); }
+.ld-k b { font-family: var(--f-disp); font-size: 26px; line-height: 1.1; }
+.ld-k.ok { background: #dcf7e7; } .ld-k.try { background: #fff3c4; } .ld-k.rest { background: #f6eef2; } .ld-k.opt { background: #ece4ff; }
+.ld-strip { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+.ld-strip i { flex: 1 1 40px; min-width: 40px; height: 30px; border-radius: 10px; border: var(--bw) solid var(--ink); background: #fff; display: grid; place-items: center; font-style: normal; font-family: var(--f-disp); font-weight: 700; font-size: 11.5px; color: var(--mute); position: relative; overflow: hidden; transform: scale(0); animation: popIn .5s var(--spring) forwards; animation-delay: calc(var(--k) * 50ms + 200ms); }
+.ld-strip i::before { content: ''; position: absolute; inset: 0; background: var(--ok); transform: translateY(100%); transition: transform .6s var(--spring); }
+.ld-strip i.try::before { background: var(--lemon); transform: translateY(50%); }
+.ld-strip i.done::before { transform: none; }
+.ld-strip i span { position: relative; }
+.ld-strip i.done { color: #fff; } .ld-strip i.try { color: var(--ink); }
+@keyframes popIn { from { transform: scale(0); } to { transform: none; } }
+.ld-msg { margin-top: 12px; font-size: 14px; color: var(--ink-2); }
+.ld-msg b { color: var(--ink); }
+/* タイル登場 */
+.rv .task-tile { opacity: 0; transform: translateY(20px) scale(.92); }
+.rv.in .task-tile { animation: tileIn .55s var(--spring) forwards; animation-delay: calc(var(--k) * 45ms + 150ms); }
+@keyframes tileIn { to { opacity: 1; transform: none; } }
+.task-enter { animation: taskIn .55s var(--spring); }
+@keyframes taskIn { from { opacity: 0; transform: translateY(24px) scale(.98); clip-path: inset(0 0 60% 0 round 20px); } to { clip-path: inset(0 0 0 0 round 20px); } }
+/* 目次: 章ごとの読了ゲージ */
+.rail a[data-nav] { position: relative; }
+.rail a[data-nav] .rg { position: absolute; left: 10px; right: 10px; bottom: 2px; height: 3px; border-radius: 99px; background: rgba(59,39,56,.08); overflow: hidden; }
+.rail a[data-nav] .rg::after { content: ''; position: absolute; inset: 0; background: var(--ptr); transform-origin: left; transform: scaleX(var(--rp, 0)); transition: transform .2s linear; border-radius: inherit; }
+.rail a[data-nav].read .rg::after { background: var(--ok); }
+.rail a[data-nav].read .n::after { content: ' ✓'; color: var(--ok); }
+/* ページ遷移 */
+body.page-leave #app { animation: pageOut .42s cubic-bezier(.7, 0, .3, 1) forwards; }
+body.page-leave::after { content: ''; position: fixed; inset: 0; z-index: 500; background: var(--ptr); transform-origin: bottom; animation: wipeUp .42s cubic-bezier(.7, 0, .3, 1) forwards; }
+@keyframes pageOut { to { opacity: .4; transform: scale(.97); filter: blur(2px); } }
+@keyframes wipeUp { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+/* チートシート・比較カードの段階登場 */
+.rv .cheat-card, .rv .cmp-card { opacity: 0; transform: translateY(24px) rotate(-1.5deg); }
+.rv.in .cheat-card, .rv.in .cmp-card { animation: tileIn .6s var(--spring) forwards; }
+.rv.in .cheat-card:nth-child(2), .rv.in .cmp-card:nth-child(2) { animation-delay: .1s; } .rv.in .cheat-card:nth-child(3), .rv.in .cmp-card:nth-child(3) { animation-delay: .2s; }
+.rv.in .cheat-card:nth-child(4) { animation-delay: .3s; } .rv.in .cheat-card:nth-child(5) { animation-delay: .4s; } .rv.in .cheat-card:nth-child(6) { animation-delay: .5s; }
+/* ポイントのスタンプ */
+.rv .point .pn { transform: rotate(-30deg) scale(0); }
+.rv.in .point .pn { animation: stamp2 .7s .2s var(--spring) forwards; }
+@keyframes stamp2 { to { transform: rotate(-6deg) scale(1); } }
+@media (max-width: 760px) {
+  .lab-dash { grid-template-columns: 1fr; justify-items: center; padding: 16px; box-shadow: 4px 4px 0 var(--ink); }
+  .ld-main { width: 100%; }
+  .ld-ks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rv .task-tile, .rv .cheat-card, .rv .cmp-card, .ld-strip i { opacity: 1 !important; transform: none !important; animation: none !important; }
+  .rv .point .pn { transform: rotate(-6deg); animation: none; }
+  body.page-leave #app, body.page-leave::after { animation: none; }
+}
+.memstrip.has-ptr .ig-mem { padding-top: 96px; }
+.ld-fg { transition: stroke-dasharray 1s var(--spring), opacity .3s; }

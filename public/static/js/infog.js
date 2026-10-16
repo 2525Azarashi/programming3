@@ -141,12 +141,13 @@
       const pos = (b) => ({ x: b.offsetLeft + b.offsetWidth / 2, y: b.offsetTop });
       const mid = 'igah' + Math.random().toString(36).slice(2, 7);
       let s = `<svg width="${W}" height="${H}"><defs><marker id="${mid}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${PAL.ptr}" stroke="#3b2738" stroke-width="1"/></marker></defs>`;
+      let lane = 0;
       vars.forEach((v, k) => {
         if (!v.ptrTo) return;
         const a = pos(blocks[k]), t = pos(blocks[vars.findIndex((x) => x.name === v.ptrTo)]);
-        const up = 54, y = a.y;
+        const up = 44 + lane * 26, y = a.y; lane++;
         s += `<path class="ig-arr" d="M${a.x} ${y - 2} C ${a.x} ${y - up}, ${t.x} ${y - up}, ${t.x} ${y - 6}" marker-end="url(#${mid})"/>`;
-        s += `<text x="${(a.x + t.x) / 2}" y="${y - up + 6}" class="ig-arr-t" text-anchor="middle">${v.name} は ${v.ptrTo} を指す</text>`;
+        s += `<text x="${a.x - 8}" y="${y - up * 0.72}" class="ig-arr-t" style="animation-delay:${0.8 + lane * 0.2}s" text-anchor="end">${v.name} は ${v.ptrTo} を指す</text>`;
       });
       svg.innerHTML = s + '</svg>';
     };
