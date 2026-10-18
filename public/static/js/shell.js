@@ -181,7 +181,7 @@
       step(proc, false);
       return true;
     }
-    function execProc(proc) { return g.CLab.run(proc.files, proc.units, { stdin: proc.acc, maxSnaps: 2, maxOps: 3000000 }); }
+    function execProc(proc) { const r = g.CLab.run(proc.files, proc.units, { stdin: proc.acc, maxSnaps: 2, maxOps: o.maxOps || 3000000, vfs: o.vfs }); if (o.vfs && r.vfs) { Object.keys(r.vfs).forEach((k) => { if (r.vfs[k] !== o.vfs[k]) { o.vfs[k] = r.vfs[k]; if (!fs.has(k)) fs.set(k, { kind: 'text', text: '(バイナリ ' + r.vfs[k].length + ' バイト)' }); } }); paintFiles(); if (o.onVfs) o.onVfs(r.vfs); } return r; }
     function renderTerm(proc, r, final) {
       proc.el.innerHTML = '';
       const hideIn = proc.inF !== null;

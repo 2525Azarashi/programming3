@@ -166,7 +166,7 @@
 
   function cellRow(name, addr, t, mem, changed, targets, label) {
     const c = mem.get(addr);
-    const v = fmtVal(c);
+    const v = c && t.unsigned && c.t === 'char' && c.v !== undefined ? String(c.v) : fmtVal(c);
     const kind = c ? c.t : 'int';
     const w = t.size >= 8 ? 'w8' : t.size === 1 ? 'w1' : 'w4';
     const bx = h('div.bx.' + w + (kind === 'ptr' ? '.ptr' : '') + (v === null ? '.uninit' : ''), { 'data-addr': addr });
@@ -343,7 +343,7 @@
 
     function load() {
       stop();
-      res = g.CLab.run(files, units, { stdin, maxSnaps: o.maxSnaps || 3000 });
+      res = g.CLab.run(files, units, { stdin, maxSnaps: o.maxSnaps || 3000, vfs: o.vfs, maxOps: o.maxOps });
       rep = Replayer(res.steps);
       i = 0;
       range.max = Math.max(0, res.steps.length - 1);

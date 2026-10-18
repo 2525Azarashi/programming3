@@ -268,6 +268,7 @@
       case 'lab': return h('div.blk', lab(b));
       case 'report': return h('div.blk', reportBox());
       case 'html': return h('div.blk', { html: b.html });
+      case 'widget': { const w = b.make(); return w ? h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, w) : null; }
       case 'mistakes': return h('div.blk', mistakes(b));
       case 'bits': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, Widgets.bits(b));
       case 'flow': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, Widgets.flow(b));
@@ -595,7 +596,7 @@
     return tx.every((v, k) => { const a = parseFloat(v), b = parseFloat(ty[k]); return v === ty[k] || (!isNaN(a) && !isNaN(b) && Math.abs(a - b) <= tol * Math.max(1, Math.abs(b))); });
   }
   function taskView(t) {
-    const codeKey = (f) => 'code:' + unitId + ':' + t.id + ':' + f;
+    const codeKey = (f) => 'code:' + unitId + ':' + ((t.share && t.share.includes(f)) ? 'shared' : t.id) + ':' + f;
     const notesKey = 'notes:' + unitId + ':' + t.id;
     const files = {};
     t.files.forEach((f) => (files[f] = store.get(codeKey(f), t.starter[f])));
@@ -653,17 +654,29 @@
       const src = allSrc();
       resultHost.innerHTML = ''; banner.innerHTML = '';
       if (t.custom) {
+        resultHost.appendChild(h('div.c-mute', t.busy || '実行中…'));
+        setTimeout(() => customRun(src), 30);
+        return;
+      }
+      runNormal(src);
+    }
+    function customRun(src) {
+      {
         const r = t.custom(src);
+        resultHost.innerHTML = '';
         resultHost.appendChild(h('div', r.out));
         banner.appendChild(h('div.result-banner.' + (r.ok ? 'ok' : 'ng'), (r.ok ? '✓ ' : '✗ ') + r.msg));
         const p0 = prog.get(unitId);
         if (r.ok) { if (p0.tasks[t.id] !== 'done') toast(t.label + ' クリア!'); prog.mark(unitId, 'tasks', t.id, 'done'); }
         else if (p0.tasks[t.id] !== 'done') prog.mark(unitId, 'tasks', t.id, 'try');
         if (t.observe && r.ok) obsFacts.innerHTML = t.observe([]);
-        store.set('lastout:' + unitId + ':' + t.id, [r.out]);
+        store.set('lastout:' + unitId + ':' + t.id, [r.text !== undefined ? r.text : typeof r.out === 'string' ? r.out : '']);
         store.set('lastok:' + unitId + ':' + t.id, r.ok);
+        if (r.ok) setTimeout(() => confettiAt(banner, 46), 60);
         return;
       }
+    }
+    function runNormal(src) {
       if (cm) cm.eachLine((l) => cm.removeLineClass(l, 'background', 'cm-errline'));
       const tests = t.tests && t.tests.length ? t.tests : [{ stdin: stdinTa.value }];
       let allOk = true, outs = [];
@@ -723,8 +736,9 @@
       Object.keys(src).forEach((f) => (tf[f] = src[f]));
       if (t.term) {
         const cfg = t.term(store);
-        const sh0 = Shell({ files: Object.assign({}, cfg.files, src), cwd: '~/' + unitId.toUpperCase(), cmds: cfg.cmds, title: t.label + ' — リダイレクトと diff', banner: 'san.c は課題 1-1 のエディタの内容, san-exp.txt は左のエディタの内容です。上から順にボタンを押してみよう。' });
+        const sh0 = Shell({ files: Object.assign({}, cfg.files, src), cwd: '~/' + unitId.toUpperCase(), cmds: cfg.cmds, title: cfg.title || (t.label + ' — リダイレクトと diff'), banner: cfg.banner || 'san.c は課題 1-1 のエディタの内容, san-exp.txt は左のエディタの内容です。上から順にボタンを押してみよう。', vfs: cfg.vfs, maxOps: cfg.maxOps, onVfs: cfg.onVfs });
         traceHost.appendChild(sh0);
+        if (cfg.after) traceHost.appendChild(cfg.after);
         setTimeout(() => traceHost.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
         return;
       }
@@ -780,7 +794,7 @@
         h('div.task-editor', fileTabs, edHost,
           h('div.task-actions',
             h('button.btn.sm.ptr', { onclick: runTests, title: 'Ctrl+Enter' }, icon('run'), 'テスト実行'),
-            t.kind === 'text' ? null : h('button.btn.sm', { onclick: trace }, icon('trace'), 'メモリで追う'),
+            t.kind === 'text' || t.noTrace ? null : h('button.btn.sm', { onclick: trace }, icon('trace'), 'メモリで追う'),
             h('button.btn.sm', { onclick: terminal, title: 'gcc → リダイレクト → diff を実際の手順どおりに' }, icon('term'), 'ターミナル'),
             h('span.sp'),
             h('button.btn.sm.ghost', { onclick: () => { if (confirm('このファイルを初期状態に戻しますか?')) { files[curFile] = t.starter[curFile]; store.del(codeKey(curFile)); switchFile(curFile); } }, title: '初期化' }, icon('reset')),

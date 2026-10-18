@@ -174,7 +174,48 @@
     return shell(spec, h('div.ig-c2', spec.lanes.map(lane)), 'compare2');
   }
 
-  const KINDS = { bars, layout, pipeline, histo, donut, memstrip, stats, compare2 };
+  /* ---------- grid2d : 2 次元配列 → 1 列に並んだメモリ (行優先) ---------- */
+  function grid2d(spec) {
+    const R = spec.rows, C = spec.cols, sz = spec.size || 4, base = spec.base || 100, nm = spec.name || 'd';
+    const val = spec.val || ((i, j) => '');
+    const grid = h('div.ig-g2', { style: { '--c2': C } });
+    const strip = h('div.ig-g2s', { style: { '--n': R * C } });
+    const gc = [], sc = [];
+    for (let i = 0; i < R; i++) for (let j = 0; j < C; j++) {
+      const k = i * C + j, c = col(['mint', 'sky', 'lemon', 'lav', 'peach', 'pink'][i % 6]);
+      const a = h('div.ig-g2c', { style: { '--c': c, '--k': k }, 'data-k': k }, h('b', String(val(i, j))), h('small', nm + '[' + i + '][' + j + ']'));
+      const b = h('div.ig-g2m', { style: { '--c': c, '--k': k }, 'data-k': k }, h('b', String(val(i, j))), h('small', nm + '[' + i + '][' + j + ']'), h('span', String(base + k * sz)));
+      gc.push(a); sc.push(b); grid.appendChild(a); strip.appendChild(b);
+    }
+    const hi = (k, on) => { [gc[k], sc[k]].forEach((x) => x && x.classList.toggle('hi', on)); };
+    [...gc, ...sc].forEach((x) => { x.addEventListener('mouseenter', () => hi(+x.dataset.k, true)); x.addEventListener('mouseleave', () => hi(+x.dataset.k, false)); });
+    const body = h('div.ig-g2w', h('div.ig-g2-l', h('div.ig-g2-cap', spec.capA || '頭の中のイメージ (行列)'), grid), h('div.ig-g2-arrow', '⇣'), h('div.ig-g2-r', h('div.ig-g2-cap', spec.capB || '実際のメモリ (1 列)'), strip));
+    const el = shell(spec, body, 'grid2d');
+    onIn(el, () => { el.classList.add('go'); if (!K.RM) { let k = 0; const tm = setInterval(() => { if (k > 0) hi(k - 1, false); if (k >= R * C) { clearInterval(tm); return; } hi(k, true); k++; }, 260); } });
+    return el;
+  }
+
+  /* ---------- pixels : pixel_t の 3 バイトが色になる ---------- */
+  function pixels(spec) {
+    const px = spec.px; // [[r,g,b] ...]  rows×cols
+    const C = spec.cols || px.length;
+    const grid = h('div.ig-px', { style: { '--c2': C } });
+    const bytes = h('div.ig-pxb');
+    px.forEach((p, k) => {
+      const [r, g, b] = p;
+      grid.appendChild(h('div.ig-pxc', { style: { '--k': k, background: 'rgb(' + r + ',' + g + ',' + b + ')' }, title: (spec.label ? spec.label(k) : 'px') + ' = (' + r + ', ' + g + ', ' + b + ')' }, h('small', spec.label ? spec.label(k) : '')));
+      bytes.appendChild(h('div.ig-pxg', { style: { '--k': k } },
+        h('i.r', { style: { '--v': r / 255 } }, h('b', String(r)), h('small', 'r')),
+        h('i.g', { style: { '--v': g / 255 } }, h('b', String(g)), h('small', 'g')),
+        h('i.b', { style: { '--v': b / 255 } }, h('b', String(b)), h('small', 'b')),
+        h('span', spec.label ? spec.label(k) : '')));
+    });
+    const el = shell(spec, h('div.ig-pxw', grid, bytes), 'pixels');
+    onIn(el, () => el.classList.add('go'));
+    return el;
+  }
+
+  const KINDS = { bars, layout, pipeline, histo, donut, memstrip, stats, compare2, grid2d, pixels };
   function make(spec) {
     const f = KINDS[spec.kind];
     if (!f) return null;

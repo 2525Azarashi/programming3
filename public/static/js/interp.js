@@ -16,6 +16,7 @@
     int: { k: 'int', size: 4, name: 'int' },
     long: { k: 'long', size: 8, name: 'long' },
     char: { k: 'char', size: 1, name: 'char' },
+    short: { k: 'int', size: 2, name: 'short' },
     float: { k: 'double', size: 4, name: 'float' },
     double: { k: 'double', size: 8, name: 'double' },
     void: { k: 'void', size: 1, name: 'void' },
@@ -192,7 +193,7 @@
         if (t.v === 'static') { next(); isStatic = true; continue; }
         if (t.v === 'unsigned') { next(); unsigned = true; seen = true; continue; }
         if (t.v === 'long') { next(); longs++; seen = true; continue; }
-        if (t.v === 'short') { next(); seen = true; base = base || T.int; continue; }
+        if (t.v === 'short') { next(); seen = true; base = base || T.short; continue; }
         if (base) break;
         if (t.v === 'int' || t.v === 'char' || t.v === 'double' || t.v === 'float' || t.v === 'void') { next(); base = T[t.v]; seen = true; continue; }
         if (t.v === 'struct') {
@@ -442,7 +443,7 @@
   }
 
   /* ---------- 実行 ---------- */
-  const STACK_BASE = 100, GLOBAL_BASE = 50000, STR_BASE = 60000;
+  const STACK_BASE = 100, GLOBAL_BASE = 300000, STR_BASE = 400000, BIG_BASE = 1000000;
 
   function run(files, mainName, opt) {
     opt = opt || {};
@@ -470,11 +471,11 @@
 
     const mem = new Map();
     let log = [];
-    const setCell = (a, c) => { log.push({ a, o: mem.has(a) ? mem.get(a) : null, n: c }); if (c) mem.set(a, c); else mem.delete(a); };
+    const setCell = (a, c) => { if (!res.truncated) log.push({ a, o: mem.has(a) ? mem.get(a) : null, n: c }); if (c) mem.set(a, c); else mem.delete(a); };
     const frames = [];
     const gscope = new Map();
     const gvars = [];
-    let gtop = GLOBAL_BASE, stop = STR_BASE;
+    let gtop = GLOBAL_BASE, stop = STR_BASE, btop = BIG_BASE;
     const strLits = new Map();
     let inPos = 0, ops = 0, out = '', errOut = '';
     /* 端末の見え方 (stdout / stderr / キーボード入力のエコー) を出現順に記録 */
@@ -485,6 +486,12 @@
     const echoTo = (p) => { if (p <= echoPos) return; let j = stdin.indexOf('\n', p - 1); j = j < 0 ? stdin.length : j + 1; tw('in', stdin.slice(echoPos, j)); echoPos = j; };
     const echoEof = () => { echoTo(stdin.length); if (!eofShown) { eofShown = true; tw('eof', '^D\n'); } };
     const rng = new GlibcRand();
+    /* 仮想ファイルシステム (fopen / fread / fwrite 用): opt.vfs = { name: Uint8Array } */
+    const vfs = {}; Object.keys(opt.vfs || {}).forEach((k) => (vfs[k] = opt.vfs[k]));
+    const fhs = new Map(); let fhNext = 1;
+    const FH_BASE = 0x7f000000;
+    const fhOf = (v, l) => { const f = fhs.get(v.v); if (!f) fail('ファイルポインタが不正です (fopen に成功していない / fclose 済み)', l); return f; };
+    function scalarSize(t) { return t.k === 'ptr' ? 8 : t.size; }
     let curLoc = null;
     const staticStore = new Map();
 
@@ -555,8 +562,8 @@
     function conv(v, t) {
       if (v === undefined) return v;
       switch (t.k) {
-        case 'int': return t.unsigned ? Math.trunc(v) >>> 0 : Math.trunc(v) | 0;
-        case 'char': return (Math.trunc(v) << 24) >> 24;
+        case 'int': if (t.size === 2) return t.unsigned ? Math.trunc(v) & 0xffff : (Math.trunc(v) << 16) >> 16; return t.unsigned ? Math.trunc(v) >>> 0 : Math.trunc(v) | 0;
+        case 'char': return t.unsigned ? Math.trunc(v) & 255 : (Math.trunc(v) << 24) >> 24;
         case 'long': return Math.trunc(v);
         case 'double': return t.name === 'float' ? Math.fround(v) : +v;
         case 'ptr': return Math.trunc(v);
@@ -610,7 +617,9 @@
         const key = (d.isStatic && f ? f.fn + '::' : '') + d.name;
         let v = staticStore.get(key);
         if (!v) {
-          const al = alignOfT(t); const addr = Math.ceil(gtop / al) * al; gtop = addr + t.size;
+          const al = alignOfT(t); let addr;
+          if (t.size >= 4096 || gtop + t.size > STR_BASE) { addr = Math.ceil(btop / 16) * 16; btop = addr + t.size; } /* 大きな static/大域配列は別領域へ */
+          else { addr = Math.ceil(gtop / al) * al; gtop = addr + t.size; }
           v = { name: d.isStatic && f ? d.name + ' (static)' : d.name, addr, t };
           alloc(addr, t, true);
           staticStore.set(key, v); gvars.push(v);
@@ -623,6 +632,7 @@
       const scope = f.scopes[f.scopes.length - 1];
       if (scope.has(d.name)) fail('変数 ' + d.name + ' が二重に宣言されています', d.loc);
       const al = alignOfT(t); const addr = Math.ceil(f.top / al) * al; f.top = addr + t.size;
+      if (f.top > GLOBAL_BASE) fail('ローカル変数が大きすぎます (このサイトのスタック領域は約 290KB)。大きな配列は static を付けるか, 大域変数にしてください', d.loc);
       const sym = { addr, t };
       scope.set(d.name, sym);
       f.vars.push({ name: d.name, addr, t, scopeDepth: f.scopes.length });
@@ -783,7 +793,7 @@
         }
         case 'asg': {
           const l = lv(e.a);
-          if (l.t.k === 'arr') fail('配列には = でまとめて代入できません', e.loc);
+          if (l.t.k === 'arr') fail('配列には = でまとめて代入できません (文字列のコピーは strcpy(コピー先, コピー元) を使います)', e.loc);
           let v;
           if (e.op === '=') {
             v = decay(rv(e.b));
@@ -824,7 +834,8 @@
     function arithT(a, b) {
       if (a.k === 'double' || b.k === 'double') return T.double;
       if (a.k === 'long' || b.k === 'long') return a.unsigned || b.unsigned ? { ...T.long, unsigned: true } : T.long;
-      return a.unsigned || b.unsigned ? { ...T.int, unsigned: true } : T.int;
+      const uA = a.unsigned && a.k !== 'char', uB = b.unsigned && b.k !== 'char';
+      return uA || uB ? { ...T.int, unsigned: true } : T.int;
     }
     function binop(op, a, b, l) {
       if (a.t.k === 'ptr' || b.t.k === 'ptr') {
@@ -991,6 +1002,43 @@
       strcmp: (a) => { const x = readStr(a[0].v), y = readStr(a[1].v); return { v: x < y ? -1 : x > y ? 1 : 0, t: T.int }; },
       assert: (a, l) => { if (!truthy(a[0])) fail('assert に失敗しました (条件が偽)', l); return { v: 0, t: T.void }; },
       exit: (a) => { throw { exitCode: a[0] ? a[0].v : 0 }; },
+      fopen: (a, l) => {
+        const name = readStr(a[0].v), mode = readStr(a[1].v);
+        if (/r/.test(mode) && !vfs[name]) return { v: 0, t: ptr(T.int) };
+        const id = FH_BASE + fhNext++;
+        fhs.set(id, { name, mode, pos: 0, buf: /r/.test(mode) ? vfs[name] : [], w: /[wa]/.test(mode) });
+        return { v: id, t: ptr(T.int) };
+      },
+      fclose: (a, l) => {
+        const f = fhOf(a[0], l);
+        if (f.w) vfs[f.name] = Uint8Array.from(f.buf);
+        fhs.delete(a[0].v);
+        return { v: 0, t: T.int };
+      },
+      fread: (a, l) => {
+        const f = fhOf(a[3], l); const size = a[1].v, n = a[2].v;
+        let et = a[0].t.k === 'ptr' ? a[0].t.to : T.char;
+        if (!isScalar(et) || scalarSize(et) !== size) et = { ...T.char, unsigned: true };
+        const es = scalarSize(et), cnt = size * n / es;
+        let got = 0;
+        for (let i = 0; i < cnt; i++) {
+          if (f.pos + es > f.buf.length) break;
+          let v = 0; for (let b = es - 1; b >= 0; b--) v = v * 256 + f.buf[f.pos + b];
+          f.pos += es; store(a[0].v + i * es, et, v); got++;
+        }
+        return { v: Math.floor(got * es / size), t: T.long };
+      },
+      fwrite: (a, l) => {
+        const f = fhOf(a[3], l); const size = a[1].v, n = a[2].v;
+        let et = a[0].t.k === 'ptr' ? a[0].t.to : T.char;
+        if (!isScalar(et) || scalarSize(et) !== size) et = { ...T.char, unsigned: true };
+        const es = scalarSize(et), cnt = size * n / es;
+        for (let i = 0; i < cnt; i++) {
+          let v = Math.trunc(load(a[0].v + i * es, et));
+          for (let b = 0; b < es; b++) { f.buf.push(((v % 256) + 256) % 256); v = Math.floor(v / 256); }
+        }
+        return { v: n, t: T.long };
+      },
     };
 
     const funcs = prog.funcs;
@@ -1145,7 +1193,8 @@
       }
     }
     if (res.steps.length && log.length) { res.steps[res.steps.length - 1].log = res.steps[res.steps.length - 1].log.concat(log); log = []; }
-    res.out = out; res.err = errOut; res.term = term;
+    fhs.forEach((f) => { if (f.w) vfs[f.name] = Uint8Array.from(f.buf); });
+    res.out = out; res.err = errOut; res.term = term; res.vfs = vfs;
     res.nameAt = null;
     return res;
   }
@@ -1168,7 +1217,7 @@
       return { ok: false, error: { msg: e.isC ? e.message : '構文の解析に失敗しました: ' + e.message, loc: e.loc } };
     }
   }
-  const BUILTIN_NAMES = ['printf', 'fprintf', 'scanf', 'puts', 'putchar', 'getchar', 'sqrt', 'fabs', 'abs', 'pow', 'floor', 'ceil', 'log', 'exp', 'cos', 'sin', 'fmod', 'round', 'rand', 'srand', 'time', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'assert', 'exit', 'malloc', 'calloc', 'free', 'sizeof'];
+  const BUILTIN_NAMES = ['printf', 'fprintf', 'scanf', 'puts', 'putchar', 'getchar', 'sqrt', 'fabs', 'abs', 'pow', 'floor', 'ceil', 'log', 'exp', 'cos', 'sin', 'fmod', 'round', 'rand', 'srand', 'time', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'assert', 'exit', 'fopen', 'fclose', 'fread', 'fwrite', 'malloc', 'calloc', 'free', 'sizeof'];
 
   global.CLab = { run, compile, BUILTIN_NAMES, typeStr, tokenize, CError, kindLabel };
 })(window);
