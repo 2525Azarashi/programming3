@@ -199,3 +199,51 @@
       { name: 'pa′', type: 'func の int *', size: 8, val: '100', color: 'peach', ptrTo: 'a' },
     ], note: 'main の pa と func の pa は<b>別の変数</b>だが, 中身は同じ番地 100。だから両方とも a を指す。' } };
 })();
+/* B4 */
+(function () {
+  'use strict';
+  const I = window.INFOG;
+  I.b4 = {
+    intro: { top: { kind: 'stats', tag: 'B4 IN NUMBERS', title: 'この単元で扱うデータの大きさ', items: [
+      { value: 2, label: '重ねる [ ] の数 (2 次元配列)', color: 'pink' },
+      { value: 3, suffix: 'B', label: 'pixel_t 1 画素 (r, g, b)', color: 'mint' },
+      { value: 255, label: 'unsigned char の最大値', color: 'lemon' },
+      { value: 768, suffix: 'KB', label: '512×512 画像の画素データ', color: 'sky' },
+    ] } },
+    arr2d: { at: {
+      2: { kind: 'grid2d', tag: 'ROW-MAJOR', title: '<code class="ic">int d[3][2]</code> — 表はメモリの中で<b>1 列</b>に並ぶ', rows: 3, cols: 2, size: 4, base: 100, name: 'd', val: (i, j) => 10 * i + j,
+        note: '後ろの添字 j が先に増える (行優先)。d[i][j] の番地 = 100 + (i×2 + j)×4。カードにマウスを乗せると対応が光る。' },
+    } },
+    func2d: { top: { kind: 'pipeline', tag: 'MATRIX.C', title: '課題 4-1 — matrix.c を 1 関数ずつ育てる',
+      steps: [
+        { icon: '1', label: 'matrix_print', sub: '<code class="ic">" %9.5f"</code>', color: 'sky' },
+        { icon: '2', label: 'matrix_scan', sub: 'プロンプトは stderr', color: 'lemon' },
+        { icon: '+', label: 'sum / trans', sub: '和・転置 ×2', color: 'lav' },
+        { icon: 'x', label: 'vector', sub: 'scan / print', color: 'peach' },
+        { icon: 'Ax', label: 'prod', sub: 'y = A x', color: 'mint' },
+      ] } },
+    structarr: { at: {
+      0: { kind: 'pixels', tag: 'PIXEL_T', title: '<code class="ic">pixel_t</code> の 3 バイトが, そのまま色になる', cols: 4,
+        px: [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 0, 255], [255, 255, 255], [0, 0, 0], [255, 128, 128], [204, 179, 207]],
+        label: (k) => ['赤', '緑', '青', '赤紫', '白', '黒', 'ピンク', '涼しげ'][k],
+        note: '各色 0〜255 の 256 階調 × 3 色 = 約 1677 万色。数値が大きいほど明るい。' },
+    } },
+    structmem: { top: { kind: 'bars', tag: 'LAYOUT', title: '<code class="ic">item_t</code> のメンバーが使うバイト数', max: 32,
+      items: [
+        { label: '<code class="ic">char name[32]</code>', value: 32, unit: 'Byte', color: 'pink' },
+        { label: '<code class="ic">int price</code>', value: 4, unit: 'Byte', color: 'mint', cells: true },
+        { label: '<code class="ic">double weight</code>', value: 8, unit: 'Byte', color: 'sky', cells: true },
+      ], note: '宣言順に並ぶ (実際の gcc では double の位置合わせのため 4 バイトの詰め物が入り, sizeof は 48)。' } },
+    bitmap: { top: { kind: 'donut', tag: 'BMP FILE', title: '128×80 の BMP ファイルの中身', unit: ' B', center: 30774, centerLabel: 'バイト',
+      segs: [
+        { label: '<b>ヘッダ</b> bmp_header_t (幅・高さなど)', v: 54, color: 'lemon' },
+        { label: '<b>画素データ</b> 128×80×3 (下の行から B, G, R)', v: 30720, color: 'pink' },
+      ], note: 'ヘッダはほんの 54 バイト。ほとんどが画素の 2 次元配列。' } },
+    summary: { top: { kind: 'stats', tag: 'RECAP', title: 'B4 をふりかえる', items: [
+      { value: 5, label: 'd[2][1] は d[0][0] から何個目? (2×2+1)', color: 'pink' },
+      { value: 3, label: 'n=3 の自己転置での交換回数', color: 'lemon' },
+      { value: 8, label: 'フレームの幅 (画素)', color: 'mint' },
+      { value: 16, label: 'ページ上で解ける課題', color: 'ok' },
+    ] } },
+  };
+})();

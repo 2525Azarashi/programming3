@@ -7,6 +7,7 @@ const UNITS: Record<string, { title: string; desc: string; extra?: string[] }> =
   b1: { title: 'Cプログラミングの基礎事項', desc: 'bit と型・標準入出力と標準エラー出力・リダイレクトと diff・EOF・配列と文字列', extra: ['code'] },
   b2: { title: '分割コンパイル', desc: '関数とプロトタイプ宣言・コンパイルとリンク・ヘッダファイル・構造体・乱数', extra: ['code'] },
   b3: { title: 'ポインタ', desc: '変数の番地・& と *・ポインタ引数・構造体/配列へのポインタ' },
+  b4: { title: '配列と構造体', desc: '2 次元配列と行列・構造体の配列 (pixel_t)・配列を持つ構造体・ビットマップ画像処理', extra: ['code'] },
 }
 
 const shell = (opts: { page: string; unit?: string; title: string; desc: string; extra?: string[] }) => `<!DOCTYPE html>

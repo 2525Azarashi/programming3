@@ -4,5 +4,6 @@ window.UNIT_INDEX = [
   { id: 'b1', title: 'Cプログラミングの基礎事項', desc: 'bit と型・stdin / stdout / stderr・リダイレクトと diff・EOF・配列と文字列', ready: true, nTask: 10, nPred: 6 },
   { id: 'b2', title: '分割コンパイル', desc: '関数とプロトタイプ宣言・コンパイルとリンク・ヘッダ・構造体・乱数', ready: true, nTask: 10, nPred: 5 },
   { id: 'b3', title: 'ポインタ', desc: '番地・& と *・ポインタ引数・構造体/配列へのポインタ', ready: true, nTask: 12, nPred: 6 },
-  { id: 'b4', title: 'Coming next', desc: '次回の資料 PDF を送ると, ここに単元が追加されます', ready: false, note: '次回' },
+  { id: 'b4', title: '配列と構造体', desc: '2 次元配列と行列・構造体の配列 pixel_t・配列を持つ構造体・画像処理', ready: true, nTask: 16, nPred: 5 },
+  { id: 'b5', title: 'Coming next', desc: '次回の資料 PDF を送ると, ここに単元が追加されます', ready: false, note: '次回' },
 ];

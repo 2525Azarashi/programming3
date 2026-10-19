@@ -1609,3 +1609,5 @@ body.page-leave::after { content: ''; position: fixed; inset: 0; z-index: 500; b
 .mtx-cap { margin-top: 14px; min-height: 40px; font: 500 13px/1.6 var(--f-mono); text-align: center; color: var(--ink-2); }
 .mtx-cap code { background: var(--lemon); border: 1.5px solid var(--ink); border-radius: 6px; padding: 1px 6px; color: var(--ink); }
 .mtx-ctl { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
+.task-wide:not(:empty) { padding: 16px 18px 4px; border-top: var(--bw) dashed var(--line-2); }
+.task-wide .imglab { box-shadow: var(--sh-s); }

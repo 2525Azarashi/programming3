@@ -90,7 +90,7 @@
   }
 
   /* ================= ホーム ================= */
-  const UNIT_DECO = { b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--sky)', '?'] };
+  const UNIT_DECO = { b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--lemon)', '[][]'], b5: ['var(--sky)', '?'] };
   function bounceWord(word, cls) {
     return h('span' + (cls || ''), word.split('').map((ch, i) => h('span.w', { style: { '--d': i } }, ch === ' ' ? '\u00a0' : ch)));
   }
@@ -664,7 +664,9 @@
       {
         const r = t.custom(src);
         resultHost.innerHTML = '';
-        resultHost.appendChild(h('div', r.out));
+        wideHost.innerHTML = '';
+        if (r.wide) { resultHost.appendChild(h('div.c-mute', { style: { fontSize: '12.5px' } }, r.wideNote || '↓ 出力画像はエディタの下に表示しています')); wideHost.appendChild(r.out); }
+        else resultHost.appendChild(h('div', r.out));
         banner.appendChild(h('div.result-banner.' + (r.ok ? 'ok' : 'ng'), (r.ok ? '✓ ' : '✗ ') + r.msg));
         const p0 = prog.get(unitId);
         if (r.ok) { if (p0.tasks[t.id] !== 'done') toast(t.label + ' クリア!'); prog.mark(unitId, 'tasks', t.id, 'done'); }
@@ -768,6 +770,7 @@
       ansHost.innerHTML = ''; ansHost.appendChild(box);
     }
     const ansHost = h('div');
+    const wideHost = h('div.task-wide');
     function download() {
       saveCur();
       t.files.forEach((f) => {
@@ -801,8 +804,9 @@
             h('button.btn.sm.ghost', { onclick: download, title: '.c をダウンロード' }, icon('dl'), '保存'))),
         h('div.task-side',
           h('div.sec', h('h6', h('span', '結果'), null), banner, h('div', { style: { height: '8px' } }), resultHost),
-          t.kind === 'text' ? null : !t.tests ? h('div.sec', h('h6', '標準入力 (stdin)'), stdinTa) : h('div.sec', h('h6', 'テストデータ'), h('div.c-mute', { style: { fontSize: '12.5px' } }, t.tests.map((x, k) => h('div', { style: { marginBottom: '4px' } }, h('span', 'テスト' + (k + 1) + ': 入力 '), h('code.ic', (x.stdin || '(なし)').trim().replace(/\n/g, ' ⏎ ').slice(0, 60))))), h('div', { style: { marginTop: '8px' } }, h('label.c-mute', { style: { fontSize: '11px' } }, '「メモリで追う」で使う入力'), stdinTa)),
+          t.kind === 'text' || t.noStdin ? null : !t.tests ? h('div.sec', h('h6', '標準入力 (stdin)'), stdinTa) : h('div.sec', h('h6', 'テストデータ'), h('div.c-mute', { style: { fontSize: '12.5px' } }, t.tests.map((x, k) => h('div', { style: { marginBottom: '4px' } }, h('span', 'テスト' + (k + 1) + ': 入力 '), h('code.ic', (x.stdin || '(なし)').trim().replace(/\n/g, ' ⏎ ').slice(0, 60))))), h('div', { style: { marginTop: '8px' } }, h('label.c-mute', { style: { fontSize: '11px' } }, '「メモリで追う」で使う入力'), stdinTa)),
           h('div.sec', h('h6', h('span', 'ヒント'), btnHint), hintList, h('div', { style: { marginTop: '10px' } }, h('button.btn.sm.ghost', { onclick: showAnswer }, icon('eye'), '模範解答')), ansHost))),
+      wideHost,
       notesEl,
       traceHost);
     if (t.observe) { const lo = store.get('lastout:' + unitId + ':' + t.id, null); if (lo && store.get('lastok:' + unitId + ':' + t.id, false)) obsFacts.innerHTML = t.observe(lo.map((o) => ({ out: o }))); else obsFacts.textContent = '「テスト実行」に成功すると, ここに観察のヒントが表示されます。'; }

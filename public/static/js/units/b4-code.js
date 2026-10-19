@@ -72,16 +72,16 @@
       if (r.err) box.appendChild(h('div.c-mute', { style: { whiteSpace: 'pre-wrap', fontFamily: 'var(--f-mono)', fontSize: '12px', marginBottom: '6px' } }, '(stderr) ' + r.err.trim()));
       if (r.error) {
         box.appendChild(h('div.er', (r.error.phase === 'compile' ? 'コンパイルエラー' : '実行時エラー') + (r.error.loc ? ' [' + r.error.loc.file + ':' + r.error.loc.line + ']' : '') + '\n' + r.error.msg));
-        return { ok: false, out: box, text: '(エラー) ' + r.error.msg, msg: 'エラーで止まりました' };
+        return { ok: false, out: box, text: '(エラー) ' + r.error.msg, msg: 'エラーで止まりました: ' + r.error.msg.slice(0, 60), wide: true };
       }
       const out = r.vfs['out.bmp'];
       if (!out) return { ok: false, out: box, text: '', msg: 'out.bmp が書き出されていません (bmp_write を呼んでいますか?)' };
       const P = imgPanel({ inBmp: inBmp(), outBmp: out, refBmp: refBmp(key) });
       box.appendChild(P.el);
       const extra = opt.check ? opt.check(src, P) : null;
-      if (extra && !extra.ok) return { ok: false, out: box, text: '', msg: extra.msg };
+      if (extra && !extra.ok) return { ok: false, out: box, text: '', msg: extra.msg, wide: true };
       const text = 'input file = "in.bmp"\noutput file = out.bmp\n(out.bmp: ' + (P.outI ? P.outI.w + '×' + P.outI.h : '?') + ' 画素)';
-      return { ok: P.same, out: box, text, msg: P.same ? '出力画像が期待どおりです (全画素一致)' + (extra && extra.msg ? ' — ' + extra.msg : '') : '出力画像が期待と違います: ' + P.diff.why + (P.diff.first >= 0 && P.outI ? ' (最初の違い: 左上から ' + (P.diff.first % P.outI.w) + ' 列目, ' + Math.floor(P.diff.first / P.outI.w) + ' 行目)' : '') };
+      return { ok: P.same, out: box, text, wide: true, msg: P.same ? '出力画像が期待どおりです (全画素一致)' + (extra && extra.msg ? ' — ' + extra.msg : '') : '出力画像が期待と違います: ' + P.diff.why + (P.diff.first >= 0 && P.outI ? ' (最初の違い: 左上から ' + (P.diff.first % P.outI.w) + ' 列目, ' + Math.floor(P.diff.first / P.outI.w) + ' 行目)' : '') };
     };
   }
   function imageTerm(key, gccLine, exe) {
