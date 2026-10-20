@@ -3,7 +3,8 @@
  * ========================================================================= */
 (function () {
   'use strict';
-  const { h, codeBlock, store, toast, icon, face, moodOf, confettiAt } = U;
+  const { h, codeBlock, store, icon, face, moodOf, confettiAt } = U;
+  const toast = (m, o) => U.toast(m, o);
   const app = document.getElementById('app');
   const page = document.body.dataset.page;
   const unitId = document.body.dataset.unit;
@@ -50,6 +51,7 @@
       h('a.brand', { href: '/' }, h('span.brand-mark', h('b', '*'), 'p'), h('span', 'PIII LAB', h('small', 'プログラミング実習Ⅲ'))),
       extra && extra.crumb ? h('div.crumb', h('span', '/'), h('b', extra.crumb)) : null,
       h('div.sp'),
+      h('button.btn.sm.ghost.search-btn', { 'aria-label': '検索 (Ctrl+K)', onclick: () => U.palette() }, icon('search'), h('span.sb-t', '検索'), h('kbd', '/')),
       extra && extra.progress ? h('div.progress-pill', h('span.pct', '0%'), h('span.ring')) : null,
       h('div.topbar-progress'));
   }
@@ -556,13 +558,24 @@
     const tiles = h('div.task-grid');
     const host = h('div');
     let cur = null;
-    U0.tasks.forEach((t) => tiles.appendChild(h('button.task-tile', { 'data-id': t.id, onclick: () => open(t.id) },
-      h('div.tn', h('span', t.label), h('span.badge', '未着手')), h('div.tt', t.short), h('div.tf', t.files.join(' · ')))));
+    U0.tasks.forEach((t) => {
+      const tile = h('button.task-tile', { 'data-id': t.id, onclick: () => open(t.id) },
+        h('div.tn', h('span', t.label), h('span.badge', '未着手')), h('div.tt', t.short), h('div.tf', t.files.join(' · ')));
+      const setSt = (v) => { const p = prog.get(unitId); const old = p.tasks[t.id]; if (v) p.tasks[t.id] = v; else delete p.tasks[t.id]; prog.set(unitId, p); refreshProgress(); return old; };
+      tiles.appendChild(U.swipe(tile, {
+        right: { label: '開く', icon: 'arrow', run: () => { open(t.id); document.getElementById('task-' + t.id).scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+        left: [
+          { label: '完了', icon: 'check', cls: 'ok', run: () => { const old = setSt('done'); toast(t.label + ' を完了にしました', { type: 'ok', action: '元に戻す', onAction: () => setSt(old) }); } },
+          { label: 'リセット', icon: 'reset', cls: 'ng', run: () => { const old = setSt(null); toast(t.label + ' を未着手に戻しました', { type: 'info', action: '元に戻す', onAction: () => setSt(old) }); } },
+        ],
+      }));
+    });
+    setTimeout(() => { if (tiles.firstChild && matchMedia('(pointer: coarse)').matches) U.swipeHint(tiles.firstChild); }, 400);
     function open(id, silent) {
       const t = U0.tasks.find((x) => x.id === id);
       if (!t) return;
       cur = id;
-      [...tiles.children].forEach((x) => x.classList.toggle('on', x.dataset.id === id));
+      tiles.querySelectorAll('.task-tile').forEach((x) => x.classList.toggle('on', x.dataset.id === id));
       host.innerHTML = '';
       const tv = taskView(t); tv.classList.add('task-enter'); host.appendChild(tv);
       if (!silent) history.replaceState(null, '', '#task-' + id);
@@ -571,7 +584,7 @@
     labApi = { open };
     setTimeout(() => open(U0.tasks[0].id, true), 0);
     void cur;
-    [...tiles.children].forEach((t, k) => t.style.setProperty('--k', k));
+    [...tiles.querySelectorAll('.task-tile')].forEach((t, k) => t.style.setProperty('--k', k));
     return h('div', labDash(U0), tiles, host);
   }
 
@@ -581,10 +594,11 @@
     loadCM.q = [cb];
     const base = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/';
     const css = h('link', { rel: 'stylesheet', href: base + 'codemirror.min.css' }); document.head.appendChild(css);
+    document.head.appendChild(h('link', { rel: 'stylesheet', href: base + 'addon/hint/show-hint.min.css' }));
     const s1 = h('script', { src: base + 'codemirror.min.js' });
     s1.onload = () => {
-      let n = 0; const fin = () => { if (++n === 4) loadCM.q.forEach((f) => f(true)); };
-      ['mode/clike/clike.min.js', 'addon/edit/matchbrackets.min.js', 'addon/edit/closebrackets.min.js', 'addon/selection/active-line.min.js'].forEach((p) => { const s = h('script', { src: base + p }); s.onload = fin; s.onerror = fin; document.head.appendChild(s); });
+      let n = 0; const fin = () => { if (++n === 5) loadCM.q.forEach((f) => f(true)); };
+      ['mode/clike/clike.min.js', 'addon/edit/matchbrackets.min.js', 'addon/edit/closebrackets.min.js', 'addon/selection/active-line.min.js', 'addon/hint/show-hint.min.js'].forEach((p) => { const s = h('script', { src: base + p }); s.onload = fin; s.onerror = fin; document.head.appendChild(s); });
     };
     s1.onerror = () => loadCM.q.forEach((f) => f(false));
     document.head.appendChild(s1);
@@ -608,7 +622,7 @@
     const fileTabs = h('div.tr-files');
     const allFiles = t.files.concat(Object.keys(given));
     allFiles.forEach((f) => fileTabs.appendChild(h('button', { 'data-f': f, onclick: () => switchFile(f) }, f, given[f] !== undefined ? h('span.c-mute', { style: { fontSize: '10px', marginLeft: '6px' } }, '配布') : null)));
-    const edHost = h('div.ed');
+    const edHost = h('div.ed', U.skel('code', 14));
 
     function getCode() { return cm ? cm.getValue() : ta ? ta.value : files[curFile]; }
     function saveCur() { if (curFile && t.files.includes(curFile)) { files[curFile] = getCode(); store.set(codeKey(curFile), files[curFile]); } }
@@ -622,9 +636,11 @@
       else if (ta) { ta.value = val; ta.readOnly = ro; }
     }
     loadCM((ok) => {
+      edHost.innerHTML = '';
       if (ok && window.CodeMirror) {
         cm = CodeMirror(edHost, { value: files[curFile], mode: 'text/x-csrc', lineNumbers: true, matchBrackets: true, autoCloseBrackets: true, styleActiveLine: true, indentUnit: 4, tabSize: 4, indentWithTabs: false, lineWrapping: false, extraKeys: { 'Ctrl-Enter': () => runTests(), 'Cmd-Enter': () => runTests(), Tab: (c) => c.replaceSelection('    ') } });
         let tm; cm.on('change', () => { clearTimeout(tm); tm = setTimeout(saveCur, 400); });
+        U.attachCHint(cm, () => allSrc());
         setTimeout(() => cm.refresh(), 50);
       } else {
         ta = h('textarea.ed-fallback', { spellcheck: 'false' }); ta.value = files[curFile]; ta.addEventListener('input', saveCur); edHost.appendChild(ta);
@@ -655,6 +671,7 @@
       resultHost.innerHTML = ''; banner.innerHTML = '';
       if (t.custom) {
         resultHost.appendChild(h('div.c-mute', t.busy || '実行中…'));
+        if (t.noStdin) { wideHost.innerHTML = ''; wideHost.appendChild(U.skel('img', 3)); }
         setTimeout(() => customRun(src), 30);
         return;
       }
@@ -763,14 +780,24 @@
       setTimeout(() => { traceHost.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
     }
     function showAnswer() {
-      if (!confirm('模範解答を表示します。まずは自分で書いてみるのがおすすめです。表示しますか?')) return;
+      U.ask({ title: '模範解答を表示する?', sub: t.label + ' ' + t.short, html: 'まずは自分で書いてみるのがおすすめ。ヒントは <b>' + t.hints.length + ' 個</b>あるよ。', ok: '表示する', cancel: 'もう少し考える', face: 'r', mood: 'think' }).then((y) => { if (y) showAnswer2(); });
+    }
+    function showAnswer2() {
       const box = h('div', { style: { marginTop: '8px' } });
       Object.keys(t.solution).forEach((f) => box.append(h('div.c-mute', { style: { fontSize: '11px', margin: '6px 0 4px', fontFamily: 'var(--f-mono)' } }, f), codeBlock(t.solution[f])));
-      box.appendChild(h('button.btn.sm', { style: { marginTop: '8px' }, onclick: () => { if (confirm('エディタの内容を模範解答で置き換えます。よろしいですか?')) { Object.keys(t.solution).forEach((f) => { if (t.files.includes(f)) { files[f] = t.solution[f]; store.set(codeKey(f), t.solution[f]); } }); curFile = null; switchFile(t.files[0]); toast('模範解答を読み込みました'); } } }, '解答をエディタに読み込む'));
+      box.appendChild(h('button.btn.sm', { style: { marginTop: '8px' }, onclick: () => { U.ask({ title: 'エディタを模範解答で置き換える?', html: '今のコードは消えます (「元に戻す」で 1 回だけ復元できます)。', ok: '置き換える', danger: true }).then((y) => { if (!y) return; const bak = Object.assign({}, files); Object.keys(t.solution).forEach((f) => { if (t.files.includes(f)) { files[f] = t.solution[f]; store.set(codeKey(f), t.solution[f]); } }); curFile = null; switchFile(t.files[0]); toast('模範解答を読み込みました', { action: '元に戻す', onAction: () => { Object.keys(bak).forEach((f) => { files[f] = bak[f]; store.set(codeKey(f), bak[f]); }); curFile = null; switchFile(t.files[0]); toast('元に戻しました', { type: 'info' }); } }); }); } }, '解答をエディタに読み込む'));
       ansHost.innerHTML = ''; ansHost.appendChild(box);
     }
     const ansHost = h('div');
     const wideHost = h('div.task-wide');
+    function resetFile() {
+      const f = curFile; if (!t.files.includes(f)) return;
+      U.ask({ title: f + ' を初期状態に戻す?', html: '書いたコードはスターターに戻ります。', ok: '初期化する', danger: true }).then((y) => {
+        if (!y) return; const bak = files[f];
+        files[f] = t.starter[f]; store.del(codeKey(f)); switchFile(f);
+        toast(f + ' を初期化しました', { type: 'info', action: '元に戻す', onAction: () => { files[f] = bak; store.set(codeKey(f), bak); switchFile(f); } });
+      });
+    }
     function download() {
       saveCur();
       t.files.forEach((f) => {
@@ -800,7 +827,7 @@
             t.kind === 'text' || t.noTrace ? null : h('button.btn.sm', { onclick: trace }, icon('trace'), 'メモリで追う'),
             h('button.btn.sm', { onclick: terminal, title: 'gcc → リダイレクト → diff を実際の手順どおりに' }, icon('term'), 'ターミナル'),
             h('span.sp'),
-            h('button.btn.sm.ghost', { onclick: () => { if (confirm('このファイルを初期状態に戻しますか?')) { files[curFile] = t.starter[curFile]; store.del(codeKey(curFile)); switchFile(curFile); } }, title: '初期化' }, icon('reset')),
+            h('button.btn.sm.ghost', { onclick: () => resetFile(), title: '初期化' }, icon('reset')),
             h('button.btn.sm.ghost', { onclick: download, title: '.c をダウンロード' }, icon('dl'), '保存'))),
         h('div.task-side',
           h('div.sec', h('h6', h('span', '結果'), null), banner, h('div', { style: { height: '8px' } }), resultHost),
@@ -897,5 +924,35 @@
   });
   addEventListener('pageshow', () => document.body.classList.remove('page-leave'));
   Kinetic.curtain(page === 'home' ? 'PIII LAB' : (unitId || '').toUpperCase() + ' ' + ((window.UNITS[unitId] || {}).title || ''));
-  document.querySelectorAll('.task-tile, .cheat-card, .unit-card').forEach((t) => Kinetic.tilt(t, 8));
+  document.querySelectorAll('.cheat-card, .unit-card').forEach((t) => Kinetic.tilt(t, 8));
+
+  /* ---------------- 検索インデックス (Auto Complete) ---------------- */
+  (function buildIndex() {
+    const items = [];
+    const strip = (x) => String(x || '').replace(/<[^>]+>/g, '');
+    (window.UNIT_INDEX || []).filter((u) => u.ready).forEach((u) => items.push({ kind: '単元', kc: 'k1', label: u.id.toUpperCase() + ' ' + u.title, sub: u.desc, href: '/' + u.id, pri: u.id === unitId ? 5 : 20 }));
+    const U0 = unitId && window.UNITS[unitId];
+    if (U0) {
+      U0.chapters.forEach((c) => {
+        items.push({ kind: '章 ' + c.num, kc: 'k2', label: strip(c.navTitle || c.title), sub: strip(c.title), kw: c.kicker, go: '#' + c.id, pri: 40 });
+        c.blocks.forEach((b) => {
+          if (b.type === 'point') items.push({ kind: 'POINT', kc: 'k3', label: strip(b.title), sub: strip(b.sub), go: '#' + c.id, pri: 10 });
+          if (b.type === 'cheat') b.items.forEach((it) => items.push({ kind: '用語', kc: 'k4', label: strip(it.c), sub: strip(it.d), go: '#' + c.id, pri: 8 }));
+          if (b.type === 'predict') items.push({ kind: '予想', kc: 'k5', label: '予想問題 ' + b.id.toUpperCase(), sub: strip(b.q), go: '#' + c.id, pri: 2 });
+        });
+      });
+      U0.tasks.forEach((t) => items.push({ kind: '課題', kc: 'k6', label: t.label + ' ' + t.short, sub: strip(t.title), kw: t.files.join(' ') + ' ' + strip(t.spec).slice(0, 200), run: () => { openTask(t.id, true); }, pri: 30 }));
+      items.push({ kind: '移動', kc: 'k0', label: 'レポート作成', sub: unitId.toUpperCase() + '.txt を生成', go: '#report', pri: 25 });
+    }
+    U.setSearchIndex(items);
+  })();
+
+  /* ---------------- Pull to Refresh (モバイル) ---------------- */
+  U.pullToRefresh(() => new Promise((res) => {
+    refreshProgress();
+    if (labDash.upd) labDash.upd();
+    document.querySelectorAll('.ig').forEach((el) => { el.classList.remove('go', 'drawn'); void el.offsetWidth; el.classList.add('go'); });
+    document.querySelectorAll('[data-count]').forEach((el) => Kinetic.countUp && Kinetic.countUp(el, +el.dataset.count, { dur: 700 }));
+    setTimeout(() => { res(); toast('進捗を更新しました', { type: 'ok' }); }, 700);
+  }));
 })();

@@ -29,6 +29,7 @@ const shell = (opts: { page: string; unit?: string; title: string; desc: string;
 <noscript><p style="padding:2rem">このサイトは JavaScript を使用します。</p></noscript>
 <script src="/static/js/core.js"></script>
 <script src="/static/js/kinetic.js"></script>
+<script src="/static/js/ux.js"></script>
 <script src="/static/js/infog.js"></script>
 <script src="/static/js/memviz.js"></script>
 <script src="/static/js/interp.js"></script>
