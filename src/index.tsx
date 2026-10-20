@@ -4,6 +4,7 @@ const app = new Hono()
 
 // 単元レジストリ (PDF を受け取るたびにここと public/static/js/units/ に追加する)
 const UNITS: Record<string, { title: string; desc: string; extra?: string[] }> = {
+  t1: { title: '中間試験対策', desc: '試験の形式・採点基準 (diff -Bw)・当日の手順・サンプルプログラム・重点復習・70 分の模擬試験 (隠しテスト付き)' },
   b1: { title: 'Cプログラミングの基礎事項', desc: 'bit と型・標準入出力と標準エラー出力・リダイレクトと diff・EOF・配列と文字列', extra: ['code'] },
   b2: { title: '分割コンパイル', desc: '関数とプロトタイプ宣言・コンパイルとリンク・ヘッダファイル・構造体・乱数', extra: ['code'] },
   b3: { title: 'ポインタ', desc: '変数の番地・& と *・ポインタ引数・構造体/配列へのポインタ' },

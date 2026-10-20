@@ -92,7 +92,7 @@
   }
 
   /* ================= ホーム ================= */
-  const UNIT_DECO = { b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--lemon)', '[][]'], b5: ['var(--sky)', '?'] };
+  const UNIT_DECO = { t1: ['var(--ptr)', 'T1'], b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--lemon)', '[][]'], b5: ['var(--sky)', '?'] };
   function bounceWord(word, cls) {
     return h('span' + (cls || ''), word.split('').map((ch, i) => h('span.w', { style: { '--d': i } }, ch === ' ' ? '\u00a0' : ch)));
   }
@@ -128,7 +128,7 @@
       const ready = !!u.ready;
       const pct = ready ? unitScore(u.id) : 0;
       const deco = UNIT_DECO[u.id] || ['var(--sky)', '{ }'];
-      list.appendChild(h(ready ? 'a.unit-card' : 'div.unit-card.soon', Object.assign({ style: { '--uc': deco[0] } }, ready ? { href: '/' + u.id } : {}),
+      list.appendChild(h(ready ? 'a.unit-card' + (u.exam ? '.exam' : '') : 'div.unit-card.soon', Object.assign({ style: { '--uc': deco[0] } }, ready ? { href: '/' + u.id } : {}),
         h('div.uid', u.id.toUpperCase()),
         h('div.uemoji', { 'aria-hidden': 'true' }, deco[1]),
         h('div.ut', u.title),
@@ -138,7 +138,7 @@
           ready ? h('span.chip' + (pct === 100 ? '.ok' : ''), pct + '%') : null,
           h('div.go', ready ? icon('arrow') : h('span.c-mute', '…')))));
     });
-    const r = units.filter((u) => u.ready);
+    const r = units.filter((u) => u.ready && !u.exam);
     const nx = r.find((u) => unitScore(u.id) < 100) || r[0];
     const started = r.some((u) => unitScore(u.id) > 0);
     const cast = h('div.home-cast',
@@ -523,7 +523,8 @@
 
   /* ================= 課題ラボ ================= */
   let labApi = null;
-  function openTask(id, scroll) { if (labApi) labApi.open(id); if (scroll) document.getElementById('lab').scrollIntoView({ behavior: 'smooth' }); }
+  function openTask(id, scroll) { if (labApi) labApi.open(id); const L = document.getElementById('lab') || document.querySelector('.task-grid'); if (scroll && L) L.scrollIntoView({ behavior: 'smooth' }); }
+  window.__t1open = (id) => openTask(id, true);
 
   /* 課題ラボの進捗ダッシュボード (インフォグラフィック) */
   function labDash(U0) {
@@ -732,7 +733,7 @@
       if (allOk && t.check) verdict = t.check(outs, src, CLab);
       const ok = allOk && (!verdict || verdict.ok);
       lastRun = { ok, outs, verdict };
-      banner.appendChild(h('div.result-banner.' + (ok ? 'ok' : allOk && verdict ? 'info' : 'ng'), ok ? '✓ ' + (t.tests ? 'diff なし — 期待値と一致しました' : '要件を満たしています') : allOk && verdict ? '△ ' + verdict.msg : '✗ 期待値と違う箇所があります'));
+      banner.appendChild(ok || !(allOk && verdict) ? h('div.result-banner.' + (ok ? 'ok' : 'ng'), ok ? '✓ ' + (t.tests ? 'diff なし — 期待値と一致しました' : '要件を満たしています') : '✗ 期待値と違う箇所があります') : h('div.result-banner.info', { html: '△ ' + verdict.msg }));
       if (ok && verdict && verdict.msg) banner.appendChild(h('div.c-mute', { style: { fontSize: '12.5px', marginTop: '6px' }, html: verdict.msg }));
       const p = prog.get(unitId);
       if (ok) { if (p.tasks[t.id] !== 'done') { toast(t.label + ' クリア!'); setTimeout(() => confettiAt(banner, 46), 60); } prog.mark(unitId, 'tasks', t.id, 'done'); }
@@ -942,7 +943,7 @@
         });
       });
       U0.tasks.forEach((t) => items.push({ kind: '課題', kc: 'k6', label: t.label + ' ' + t.short, sub: strip(t.title), kw: t.files.join(' ') + ' ' + strip(t.spec).slice(0, 200), run: () => { openTask(t.id, true); }, pri: 30 }));
-      items.push({ kind: '移動', kc: 'k0', label: 'レポート作成', sub: unitId.toUpperCase() + '.txt を生成', go: '#report', pri: 25 });
+      if (!U0.noReport) items.push({ kind: '移動', kc: 'k0', label: 'レポート作成', sub: unitId.toUpperCase() + '.txt を生成', go: '#report', pri: 25 });
     }
     U.setSearchIndex(items);
   })();

@@ -247,3 +247,38 @@
     ] } },
   };
 })();
+/* T1 中間試験 */
+(function () {
+  'use strict';
+  const I = window.INFOG;
+  I.t1 = {
+    format: { top: { kind: 'stats', tag: 'T1 IN NUMBERS', title: '中間試験 T1 を数字で', items: [
+      { value: 4, suffix: '問', label: '問題数 (各 5 点)', color: 'pink' },
+      { value: 10, suffix: '点', label: '合格ライン (20 点満点)', color: 'ok' },
+      { value: 70, suffix: '分', label: '試験時間', color: 'lemon' },
+      { value: 0, suffix: '個', label: '持ち込める資料 (時計と筆記用具のみ)', color: 'sky' },
+    ] } },
+    scoring: { top: { kind: 'pipeline', tag: 'GRADING', title: '1 問の採点の流れ — どこで落ちても 0 点',
+      steps: [
+        { icon: '1', label: '指定の名前・フォルダ', sub: '違えば採点対象外', color: 'lemon' },
+        { icon: '2', label: 'コンパイル', sub: 'エラーなら 0 点', color: 'lav' },
+        { icon: '3', label: '問題の入力で diff -Bw', sub: '1 文字違えば 0 点', color: 'pink' },
+        { icon: '4', label: '別の入力で diff -Bw', sub: '隠しテスト', color: 'peach' },
+        { icon: '5', label: '題意どおりか', sub: 'コードを読まれる', color: 'mint' },
+      ] } },
+    focus: { top: { kind: 'donut', tag: 'FOCUS', title: '名指しされた 7 つの例題・課題の内訳', unit: ' 個', center: 7, centerLabel: '重点',
+      segs: [
+        { label: '<b>ポインタ引数</b> 例題(3-4) 課題(3-4)(3-5)', v: 3, color: 'pink' },
+        { label: '<b>構造体ポインタ</b> 例題(3-5) 課題(3-7)', v: 2, color: 'lav' },
+        { label: '<b>配列と乱数</b> 課題(3-10)', v: 1, color: 'mint' },
+        { label: '<b>2 次元配列と行列</b> 課題(4-1)', v: 1, color: 'lemon' },
+      ] } },
+    skills: { top: { kind: 'pipeline', tag: 'EVERY PROBLEM', title: '本番で毎問くり返す 4 手',
+      steps: [
+        { icon: '✎', label: '保存', sub: '指定の名前で', color: 'lemon' },
+        { icon: 'gcc', label: 'gcc a.c b.c', sub: '分割コンパイル', color: 'lav' },
+        { icon: '&lt;&gt;', label: './a &lt; in &gt; out', sub: 'リダイレクト', color: 'sky' },
+        { icon: '=', label: 'diff -Bw', sub: '何も出なければ OK', color: 'mint' },
+      ] } },
+  };
+})();

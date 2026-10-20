@@ -1,6 +1,7 @@
 /* 単元一覧 — PDF を受け取るごとに ready: true の単元を追加する */
 window.UNITS = window.UNITS || {};
 window.UNIT_INDEX = [
+  { id: 't1', title: '中間試験対策', desc: '形式・採点基準 (diff -Bw)・当日の手順・サンプルプログラム・70 分の模擬試験', ready: true, nTask: 6, nPred: 2, exam: true },
   { id: 'b1', title: 'Cプログラミングの基礎事項', desc: 'bit と型・stdin / stdout / stderr・リダイレクトと diff・EOF・配列と文字列', ready: true, nTask: 10, nPred: 6 },
   { id: 'b2', title: '分割コンパイル', desc: '関数とプロトタイプ宣言・コンパイルとリンク・ヘッダ・構造体・乱数', ready: true, nTask: 10, nPred: 5 },
   { id: 'b3', title: 'ポインタ', desc: '番地・& と *・ポインタ引数・構造体/配列へのポインタ', ready: true, nTask: 12, nPred: 6 },
