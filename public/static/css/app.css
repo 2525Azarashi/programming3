@@ -1219,7 +1219,7 @@ table.mini th, table.mini td { border-color: rgba(59,39,56,.2); }
 .k-split.k-in .k-block { animation: kbIn .8s var(--spring) both; animation-delay: calc(var(--i) * 28ms + 120ms); }
 @keyframes kbIn { from { opacity: 0; transform: scale(.3) rotate(-20deg); } to { opacity: 1; transform: rotate(-2.5deg); } }
 /* 見出し: スクロール速度で傾く + 1 文字ずつホバーでぴょん */
-.chap h2.k-split, .u-hero h1.k-split { transform: skewY(calc(var(--skew) * -.5)); transition: transform .4s var(--ease); }
+
 .chap h2 .kc, .u-hero h1 .kc { transition: transform .35s var(--spring), color .2s; }
 .chap h2 .kc:hover, .u-hero h1 .kc:hover { transform: translateY(-.18em) rotate(-6deg) scale(1.12); color: var(--ptr); }
 .chap-kicker.k-split.k-in .kc { animation-name: kcType; animation-duration: .01s; animation-timing-function: steps(1); animation-delay: calc(var(--i) * 34ms); }
@@ -1269,16 +1269,6 @@ table.mini th, table.mini td { border-color: rgba(59,39,56,.2); }
 .k-ripple { position: absolute; border-radius: 50%; background: currentColor; opacity: .22; transform: scale(0); animation: ripple .65s var(--ease) forwards; pointer-events: none; z-index: 0; }
 @keyframes ripple { to { transform: scale(1); opacity: 0; } }
 .task-tile.done::after { z-index: 2; }
-/* カーソル */
-.k-cursor { position: fixed; left: 0; top: 0; z-index: 300; pointer-events: none; width: 0; height: 0; opacity: 0; transition: opacity .3s; }
-.k-cursor.on { opacity: 1; }
-.k-cursor::before { content: ''; position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink); background: rgba(242, 70, 127, .25); transition: transform .3s var(--spring), background .2s, border-radius .3s; }
-.k-cursor.hov::before { transform: scale(2.4); background: rgba(255, 226, 122, .45); }
-.k-cursor.down::before { transform: scale(.7); }
-.k-cursor.hov.down::before { transform: scale(1.9); }
-.k-cursor.hide::before { transform: scale(0); }
-.k-cursor span { position: absolute; left: 16px; top: 14px; white-space: nowrap; font-size: 12px; font-weight: 900; background: var(--ink); color: #fff; padding: 2px 10px; border-radius: 99px; opacity: 0; transform: scale(.6); transition: .25s var(--spring); }
-.k-cursor.txt span { opacity: 1; transform: none; }
 /* 開幕カーテン */
 .k-curtain { position: fixed; inset: 0; z-index: 400; pointer-events: none; display: grid; place-items: center; }
 .kc-panel { position: absolute; inset: 0; transform: translateY(0); transition: transform .8s cubic-bezier(.7, 0, .2, 1); }
@@ -1857,3 +1847,20 @@ li.CodeMirror-hint-active { background: var(--ink); color: #fff; }
   .bwlab { grid-template-columns: 1fr; padding: 14px; }
   .unit-card.exam .uid::after { top: -8px; }
 }
+
+/* ===================== 軽量化 ===================== */
+.k-off, .k-off * { animation-play-state: paused !important; }
+.topbar { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: rgba(255,246,236,.96) !important; }
+.bs-back { backdrop-filter: none !important; }
+.blk { content-visibility: auto; contain-intrinsic-size: auto 480px; }
+/* 背景のグラデーションは固定レイヤーへ (スクロールのたびの全面再描画をなくす) */
+body { background: var(--bg) !important; }
+body::after { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(900px 500px at 92% -5%, rgba(255, 179, 207, .45), transparent 60%),
+    radial-gradient(700px 480px at -8% 30%, rgba(159, 230, 214, .35), transparent 60%),
+    radial-gradient(800px 520px at 110% 75%, rgba(255, 226, 122, .28), transparent 60%); }
+body::before, body::after { transform: translateZ(0); will-change: transform; }
+/* SVG の drop-shadow は再描画が重いので固定の影に */
+.hc-face svg, .hero-mem-card .hm-face svg, .tk-av svg { filter: none !important; }
+.ld-fg { filter: none !important; }
+.result-banner { overflow-wrap: anywhere; } .result-banner code.ic { white-space: pre-wrap; word-break: break-all; }

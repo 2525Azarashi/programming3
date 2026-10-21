@@ -52,7 +52,7 @@
   function countUp(el, to, opt) {
     opt = opt || {};
     const dur = opt.dur || 1200, dec = opt.dec || 0, suf = opt.suffix || '';
-    const fmt = (v) => (dec ? v.toFixed(dec) : Math.round(v).toLocaleString()) + suf;
+    const fmt = (v) => (dec ? v.toFixed(dec) : String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')) + suf;
     if (RM) { el.textContent = fmt(to); return; }
     const t0 = performance.now(), from = opt.from || 0;
     const step = (t) => {
@@ -112,20 +112,22 @@
     const y = scrollY;
     vel = vel * 0.82 + (y - lastY) * 0.18;
     lastY = y;
-    const sk = Math.max(-6, Math.min(6, vel * 0.12));
-    document.documentElement.style.setProperty('--skew', sk.toFixed(2) + 'deg');
     const vh = innerHeight;
-    tickers.forEach((t) => {
-      const r = t.host.getBoundingClientRect();
-      if (r.bottom < -200 || r.top > vh + 200) return;
-      const p = (vh - r.top) / (vh + r.height);
+    // 軽量化: 画面内の見出し帯だけ, 位置は offsetTop から計算 (強制レイアウトを避ける)
+    for (const t of tickers) {
+      if (!t.vis) continue;
+      if (t.top === undefined) { const r = t.host.getBoundingClientRect(); t.top = r.top + y; t.hh = r.height; }
+      const top = t.top - y;
+      const p = (vh - top) / (vh + t.hh);
       t.el.style.transform = `translate3d(${(-p * t.dist + t.off).toFixed(1)}px,0,0)`;
-    });
-    if (Math.abs(vel) > 0.05) raf = requestAnimationFrame(loop);
+    }
+    if (Math.abs(vel) > 0.5) raf = requestAnimationFrame(loop);
   }
   function kick() { if (!raf && !RM) raf = requestAnimationFrame(loop); }
   addEventListener('scroll', kick, { passive: true });
   addEventListener('resize', kick);
+  const tio = 'IntersectionObserver' in g ? new IntersectionObserver((es) => es.forEach((e) => { const t = tickers.find((x) => x.host === e.target); if (t) { t.vis = e.isIntersecting; t.top = undefined; } }), { rootMargin: '200px 0px' }) : null;
+  addEventListener('resize', () => tickers.forEach((t) => (t.top = undefined)));
   function ticker(host, text, opt) {
     opt = opt || {};
     const el = document.createElement('div');
@@ -134,7 +136,9 @@
     el.textContent = (text + '  ✦  ').repeat(opt.rep || 4);
     host.classList.add('k-ticker-host');
     host.insertBefore(el, host.firstChild);
-    tickers.push({ host, el, dist: opt.dist || 600, off: opt.off || 0 });
+    const t = { host, el, dist: opt.dist || 600, off: opt.off || 0, vis: false };
+    tickers.push(t);
+    if (tio) tio.observe(host); else t.vis = true;
     kick();
     return el;
   }
@@ -180,28 +184,8 @@
     setTimeout(() => s.remove(), 650);
   });
 
-  /* ---- カーソルフォロワー ---- */
-  function cursor() {
-    if (!FINE || RM || document.querySelector('.k-cursor')) return;
-    const c = document.createElement('div'); c.className = 'k-cursor'; c.setAttribute('aria-hidden', 'true');
-    const lab = document.createElement('span'); c.appendChild(lab);
-    document.body.appendChild(c);
-    let x = -100, y = -100, tx = -100, ty = -100, on = false;
-    addEventListener('pointermove', (e) => {
-      tx = e.clientX; ty = e.clientY;
-      if (!on) { on = true; x = tx; y = ty; c.classList.add('on'); }
-      const t = e.target.closest && e.target.closest('a, button, .choice, .task-tile, [data-cursor], input, textarea, .CodeMirror');
-      const txt = t && t.closest('[data-cursor]') ? t.closest('[data-cursor]').dataset.cursor : '';
-      c.classList.toggle('hov', !!t && !(t.matches('input, textarea, .CodeMirror') || t.closest('.CodeMirror')));
-      c.classList.toggle('txt', !!txt);
-      c.classList.toggle('hide', !!t && (t.matches('input, textarea') || !!t.closest('.CodeMirror')));
-      lab.textContent = txt;
-    }, { passive: true });
-    document.addEventListener('pointerleave', () => { c.classList.remove('on'); on = false; });
-    addEventListener('pointerdown', () => c.classList.add('down'));
-    addEventListener('pointerup', () => c.classList.remove('down'));
-    (function f() { x += (tx - x) * 0.2; y += (ty - y) * 0.2; c.style.transform = `translate3d(${x}px,${y}px,0)`; requestAnimationFrame(f); })();
-  }
+  /* カーソルフォロワーは廃止 (軽量化) */
+  function cursor() { const c = document.querySelector('.k-cursor'); if (c) c.remove(); }
 
   /* ---- 開幕カーテン ---- */
   function curtain(label) {
@@ -244,5 +228,10 @@
     addEventListener('scroll', upd, { passive: true }); upd();
   }
 
-  g.Kinetic = { split, watch, countUp, autoCount, rotator, ticker, magnet, tilt, cursor, curtain, scrub, kick, RM };
+  /* ---- 軽量化: 画面外のブロックは CSS アニメーションを一時停止 ---- */
+  const pio = 'IntersectionObserver' in g ? new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle('k-off', !e.isIntersecting)), { rootMargin: '100px 0px' }) : null;
+  function pauseOff(root) { if (!pio) return; (root || document).querySelectorAll('section, .marquee-wrap, .ig, .blk, .hero-mem-card, .home-cast').forEach((el) => { if (!el.dataset.kp) { el.dataset.kp = '1'; pio.observe(el); } }); }
+  addEventListener('load', () => pauseOff());
+  setTimeout(() => pauseOff(), 1500);
+  g.Kinetic = { pauseOff, split, watch, countUp, autoCount, rotator, ticker, magnet, tilt, cursor, curtain, scrub, kick, RM };
 })(window);

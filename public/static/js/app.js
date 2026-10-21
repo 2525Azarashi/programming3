@@ -222,11 +222,24 @@
     // 目次: 各章の読了ゲージ
     const railLinks = [...rail.querySelectorAll('a[data-nav]')].map((a) => [a, document.getElementById(a.dataset.nav)]);
     railLinks.forEach(([a]) => a.appendChild(h('i.rg')));
+    // 軽量化: スクロール 1 フレームにつき 1 回だけ, 読み取り (offsetTop) と書き込みを分けて実行
+    let railRaf = 0, secPos = [];
+    const measure = () => { const y0 = scrollY; secPos = railLinks.map(([, sec]) => { if (!sec) return null; const r = sec.getBoundingClientRect(); return [r.top + y0, r.height]; }); };
     const railUpd = () => {
-      const vh = innerHeight;
-      railLinks.forEach(([a, sec]) => { if (!sec) return; const r = sec.getBoundingClientRect(); const p = Math.max(0, Math.min(1, (vh * 0.6 - r.top) / Math.max(1, r.height))); a.style.setProperty('--rp', p.toFixed(3)); a.classList.toggle('read', p >= 0.98); });
+      railRaf = 0;
+      const vh = innerHeight, y = scrollY;
+      railLinks.forEach(([a], k) => {
+        const m = secPos[k]; if (!m) return;
+        const p = Math.max(0, Math.min(1, (vh * 0.6 - (m[0] - y)) / Math.max(1, m[1])));
+        const v = p.toFixed(2);
+        if (a._rp !== v) { a._rp = v; a.style.setProperty('--rp', v); a.classList.toggle('read', p >= 0.98); }
+      });
     };
-    addEventListener('scroll', railUpd, { passive: true }); railUpd();
+    const railKick = () => { if (!railRaf) railRaf = requestAnimationFrame(railUpd); };
+    addEventListener('scroll', railKick, { passive: true });
+    addEventListener('resize', () => { measure(); railKick(); });
+    let roT = 0; if ('ResizeObserver' in window) new ResizeObserver(() => { clearTimeout(roT); roT = setTimeout(() => { measure(); railKick(); }, 150); }).observe(main);
+    requestAnimationFrame(() => setTimeout(() => { measure(); railKick(); }, 0));
     const rvio = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); rvio.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' });
     main.querySelectorAll('.rv').forEach((el) => rvio.observe(el));
     refreshProgress();
@@ -500,7 +513,7 @@
       h('div.repl-body',
         h('div.repl-left', histEl, h('div.repl-in', input, h('button.btn.ptr', { onclick: () => submit(input.value) }, '実行')), quick, goalEl),
         h('div.repl-right', msg, h('div.tr-mem', memHost, MemViz.legend()), h('div.tr-console', h('div.ch', h('span', '出力')), outEl))));
-    setTimeout(() => { render(lines); checkGoals(null); }, 0);
+    U.whenNear(el, () => { render(lines); checkGoals(null); });
     return el;
   }
 
@@ -583,10 +596,12 @@
       refreshProgress();
     }
     labApi = { open };
-    setTimeout(() => open(U0.tasks[0].id, true), 0);
+    const labRoot = h('div');
+    U.whenNear(labRoot, () => { if (!cur) open(U0.tasks[0].id, true); });
     void cur;
     [...tiles.querySelectorAll('.task-tile')].forEach((t, k) => t.style.setProperty('--k', k));
-    return h('div', labDash(U0), tiles, host);
+    labRoot.append(labDash(U0), tiles, host);
+    return labRoot;
   }
 
   function loadCM(cb) {
@@ -913,7 +928,7 @@
 
   /* ---------------- 起動 ---------------- */
   if (page === 'home') renderHome(); else renderUnit();
-  Kinetic.cursor();
+
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
     if (!a || e.metaKey || e.ctrlKey || e.shiftKey || a.target === '_blank') return;

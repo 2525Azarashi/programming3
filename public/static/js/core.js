@@ -183,5 +183,9 @@
   }
   function confettiAt(el, n) { if (!el) return; const r = el.getBoundingClientRect(); confetti(r.left + r.width / 2, r.top + Math.min(r.height / 2, 60), n); }
 
-  g.U = { h, esc, hlCode, codeBlock, store, toast, icon, ICONS, face, moodOf, confetti, confettiAt };
+  /* 画面に近づいたら 1 回だけ実行 (重い初期化の遅延) */
+  const nearQ = new Map();
+  const nio = 'IntersectionObserver' in g ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting && nearQ.has(e.target)) { const f = nearQ.get(e.target); nearQ.delete(e.target); nio.unobserve(e.target); f(); } }), { rootMargin: '600px 0px' }) : null;
+  function whenNear(el, fn) { if (!nio) { setTimeout(fn, 0); return; } nearQ.set(el, fn); setTimeout(() => nio.observe(el), 0); }
+  g.U = { whenNear, h, esc, hlCode, codeBlock, store, toast, icon, ICONS, face, moodOf, confetti, confettiAt };
 })(window);
