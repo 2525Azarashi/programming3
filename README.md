@@ -21,6 +21,7 @@
 - 進捗・コード・メモは localStorage に自動保存。
 
 ## URL
+- **GitHub**: https://github.com/2525Azarashi/programming3 (main ブランチ)
 - `/` — 単元一覧
 - `/t1` — 中間試験 T1 対策（`#mock` 模擬試験, `#procedure` 当日の手順）
 - `/b1`, `/b2`, `/b3`, `/b4` — 各単元（`#lab` 課題ラボ, `#report` レポート, `#task-2-5` など課題直リンク）
