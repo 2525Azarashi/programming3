@@ -139,6 +139,91 @@ void minmax(int a, int b, int c, int *mn, int *mx)
     return el;
   }
 
+  /* ---------- 重点問題まとめ (資料「特に復習」の 7 題) ---------- */
+  const REVIEW = [
+    { id: '例題 (3-4)', grp: 'A', title: 'triple — 2 つの変数をそれぞれ 3 倍', href: '/b3#func', files: 'triple.c (1 ファイル)',
+      ask: 'int 型変数へのポインタ p, q を受け取り, <b>p の指す変数と q の指す変数をそれぞれ 3 倍</b>する <code class="ic">void triple(int *, int *)</code>。main から呼んで, 実際に 3 倍されることを確認する。',
+      need: ['<code class="ic">int *p</code> — ポインタ型の仮引数', '<code class="ic">*p = 3 * *p;</code> — 指す先を読んで書き戻す', '<code class="ic">triple(&x, &y);</code> — 値でなく番地を渡す'],
+      steps: ['仮引数を <code class="ic">int *p, int *q</code> にする', '本体で <code class="ic">*p</code>, <code class="ic">*q</code> を 3 倍', 'main で <code class="ic">&x</code>, <code class="ic">&y</code> を渡して呼ぶ', 'printf で <code class="ic">x = 3, y = 6</code> を確認'],
+      trap: '<code class="ic">p = 3 * p;</code> (アスタリスク忘れ) は番地を 3 倍してしまう。<code class="ic">triple(x, y)</code> は値のコピーが渡るだけで元は変わらない。',
+      code: 'void triple(int *p, int *q)\n{\n  *p = 3 * *p;\n  *q = 3 * *q;\n}\n/* main: triple(&x, &y); */' },
+    { id: '課題 (3-4)', grp: 'A', title: 'divrem — 商を *q, 剰余を *r に', href: '/b3#task-3-4', files: 'divrem.c (空欄埋め)',
+      ask: 'x を y で割った<b>商を q 番地</b>, <b>剰余を r 番地</b>に格納する <code class="ic">void divrem(int x, int y, int *q, int *r)</code> を完成させ, main の呼び出しの空欄を埋める。期待出力 <code class="ic">x / y = 3 ... 1</code>。',
+      need: ['整数の商 <code class="ic">x / y</code> と剰余 <code class="ic">x % y</code>', '入力用 (値) と出力用 (ポインタ) の引数の区別', '呼び出し側の <code class="ic">&q, &r</code>'],
+      steps: ['本体に <code class="ic">*q = x / y;</code> と <code class="ic">*r = x % y;</code>', '空欄に <code class="ic">x, y, &q, &r</code>', 'gcc → 実行 → <code class="ic">x / y = 3 ... 1</code>'],
+      trap: '空欄を <code class="ic">x, y, q, r</code> とすると「int を int* に渡した」警告 + 実行時におかしな値。返したい値が 2 つ = return では足りない = ポインタ。',
+      code: 'void divrem(int x, int y, int *q, int *r)\n{\n  *q = x / y;\n  *r = x % y;\n}\n/* main: divrem(x, y, &q, &r); */' },
+    { id: '課題 (3-5)', grp: 'A', title: 'ave — 相加平均と相乗平均 (分割コンパイル)', href: '/b3#task-3-5', files: 'ave6.c + ave6.h + ave6main.c',
+      ask: '<code class="ic">void ave(double a, double b, double *p_a, double *p_m)</code> を <b>ave6.c</b> に作り, 相加平均 (a+b)/2 を p_a 番地, 相乗平均 √(ab) を p_m 番地へ。ave6.h をインクルードし, ave6main.c とリンク。',
+      need: ['<code class="ic">#include "ave6.h"</code> と <code class="ic">&lt;math.h&gt;</code>', 'sqrt と <code class="ic">-lm</code>', '<b>2 ファイルの分割コンパイル</b>とリダイレクト + diff'],
+      steps: ['ave6.c に include 2 行と関数本体を書く', '<code class="ic">gcc ave6main.c ave6.c -lm</code>', '<code class="ic">./a &lt; ave-in.txt &gt; out.txt</code>', '<code class="ic">diff -Bw out.txt ave-exp.txt</code> が何も出さない'],
+      trap: 'ave6.c に main を書かない (main は ave6main.c にある → multiple definition)。<code class="ic">(a + b) / 2</code> は double なので OK だが, int 同士の割り算には注意。',
+      code: '#include <math.h>\n#include "ave6.h"\n\nvoid ave(double a, double b, double *p_a, double *p_m)\n{\n  *p_a = (a + b) / 2.0;\n  *p_m = sqrt(a * b);\n}' },
+    { id: '例題 (3-5)', grp: 'B', title: 'item_t — 構造体へのポインタで読む・書き換える・出す', href: '/b3#struct', files: '1 ファイル (item_t を typedef)',
+      ask: '<code class="ic">int item_scan(item_t *a)</code> (name, price, weight を読む。EOF なら EOF, 成功で 1), <code class="ic">void item_double_price(item_t *a)</code> (price を 2 倍), <code class="ic">void item_print(item_t *a)</code> (<code class="ic">name,price,weight</code> を出力)。main は EOF まで「読む → 2 倍 → 出力」。',
+      need: ['<code class="ic">x-&gt;price</code> (= <code class="ic">(*x).price</code>)', '文字列メンバーの読込は <code class="ic">scanf(NM_FMT, x-&gt;name)</code> — <b>& を付けない</b>', '数値メンバーは <code class="ic">&x-&gt;price</code>', 'EOF を返り値で伝える関数の形'],
+      steps: ['typedef struct で item_t を定義 (name[NM_LEN+1], price, weight)', 'item_scan: 3 つの scanf, どれかが EOF なら <code class="ic">return EOF;</code>', 'item_double_price: <code class="ic">x-&gt;price = x-&gt;price * 2;</code>', 'item_print: <code class="ic">"%s" ",%d" ",%0.2f" "\\n"</code>', 'main: <code class="ic">for (;;) { if (item_scan(&a)==EOF) break; … }</code>'],
+      trap: '値渡し <code class="ic">item_double_price(item_t x)</code> だと<b>コピーが 2 倍されるだけ</b>で a は変わらない (B3 の予想問題)。出力のカンマ・小数桁は diff -Bw でも見逃されない。',
+      code: 'int item_scan(item_t *x)\n{\n  fprintf(stderr, "name = ");\n  if (scanf(NM_FMT, x->name)==EOF) { return EOF; }\n  fprintf(stderr, "price = ");\n  if (scanf("%d", &x->price)==EOF) { return EOF; }\n  fprintf(stderr, "weight = ");\n  if (scanf("%lf", &x->weight)==EOF) { return EOF; }\n  return 1;\n}' },
+    { id: '課題 (3-7)', grp: 'B', title: 'dist5 — point_scan と dist', href: '/b3#task-3-7', files: 'dist5.c + dist5.h + dist5main.c',
+      ask: '<code class="ic">int point_scan(point_t *p)</code> (x, y を読む。EOF なら EOF, そうでなければ 1) と <code class="ic">double dist(point_t *p1, point_t *p2)</code> (2 点間の距離) を <b>dist5.c</b> に。dist5.h, stdio.h, math.h をインクルードし dist5main.c とリンク。',
+      need: ['<code class="ic">&p-&gt;x</code> を scanf に渡す', '√((x₁−x₂)² + (y₁−y₂)²) — sqrt と <code class="ic">-lm</code>', 'EOF 判定 → 返り値', '分割コンパイル + diff (dist-in.txt / dist-exp.txt)'],
+      steps: ['dist5.c に include 3 行', 'point_scan: <code class="ic">if (scanf("%lf", &p-&gt;x)==EOF) return EOF;</code> (y も)', 'dist: dx, dy を作って <code class="ic">return sqrt(dx*dx + dy*dy);</code>', '<code class="ic">gcc dist5main.c dist5.c -lm</code>', 'リダイレクト → <code class="ic">diff -Bw</code>'],
+      trap: 'point_scan の中でプロンプトを出すなら <b>stderr</b>。dist5.h の typedef を dist5.c にもう一度書くと型の重複定義エラー。',
+      code: 'int point_scan(point_t *p)\n{\n  if (scanf("%lf", &p->x)==EOF) { return EOF; }\n  if (scanf("%lf", &p->y)==EOF) { return EOF; }\n  return 1;\n}\n\ndouble dist(point_t *p1, point_t *p2)\n{\n  double dx = p1->x - p2->x, dy = p1->y - p2->y;\n  return sqrt(dx*dx + dy*dy);\n}' },
+    { id: '課題 (3-10)', grp: 'C', title: 'dice3 — サイコロ 3 個の目の和の分布', href: '/b3#task-3-10', files: 'dice3sub.c + dice3sub.h + dice3.c',
+      ask: '<code class="ic">void dice_throw(int d[ ], int n)</code> (1〜6 の一様乱数を n 個 d[ ] へ) と <code class="ic">void dice3_distr(int n, int d1[ ], int d2[ ], int d3[ ], int c[ ])</code> (和 s の出現回数を c[s] に数える) を <b>dice3sub.c</b> に。dice3.c とリンク。',
+      need: ['<code class="ic">rand() % 6 + 1</code> と <code class="ic">&lt;stdlib.h&gt;</code>', '配列引数 <code class="ic">int d[ ]</code> (先頭の番地が渡る → 書き込みは呼び出し元に残る)', '<b>カウンタの 0 初期化</b> (dice3.c は c[ ] に rand() のゴミを入れてから呼ぶ)', 'D3_MIN〜D3_MAX のマクロ'],
+      steps: ['dice_throw: <code class="ic">for (i=0; i&lt;n; i++) d[i] = rand() % 6 + 1;</code>', 'dice3_distr: まず <code class="ic">c[D3_MIN]〜c[D3_MAX] = 0</code>', '<code class="ic">c[d1[i] + d2[i] + d3[i]]++;</code>', '<code class="ic">gcc dice3.c dice3sub.c</code> → 実行して合計が n になるか確認'],
+      trap: 'srand は dice3.c が呼んでいるので<b>自分では呼ばない</b> (乱数列が変わり期待値と合わなくなる)。初期化を忘れると巨大な数が出る。',
+      code: 'void dice3_distr(int n, int d1[], int d2[], int d3[], int c[])\n{\n  int i, s;\n  for (s=D3_MIN; s<=D3_MAX; s++) { c[s] = 0; }\n  for (i=0; i<n; i++) {\n    c[d1[i] + d2[i] + d3[i]]++;\n  }\n}' },
+    { id: '課題 (4-1)', grp: 'D', title: 'matrix.c — 行列・ベクトルの関数群 (1)〜(7)', href: '/b4#task-4-1-1', files: 'matrix.c + matrix.h + matrixKtest.c',
+      ask: 'n×n 行列 (N = 8) の関数を matrix.c に作る: (1) matrix_print の書式 <code class="ic">" %9.5f"</code>, (2) matrix_scan (プロンプトは stderr), (3) matrix_sum, (4) matrix_trans2 (転置を Y へ), (5) matrix_trans1 (<b>A 以外の配列を使わず</b>自分を転置), (6) vector_scan / vector_print, (7) matrix_vector_prod (y = Ax)。',
+      need: ['2 次元配列の仮引数 <code class="ic">double A[N][N]</code> (列数 N は省略不可)', '2 重ループ (積は 3 重ではなく i, j の 2 重 + 足し込み)', '<b>上限は n</b> (N ではない)', 'tmp を使った交換と「半分だけ」のループ (j = i+1 から)', '書式を期待値に合わせる (幅 9, 小数 5 桁)'],
+      steps: ['(1) printf を <code class="ic">" %9.5f"</code> にして matrix1test.c と diff', '(2) 2 重ループで <code class="ic">scanf("%lf", &A[i][j])</code>', '(3)(4) <code class="ic">Y[i][j] = A[i][j] + B[i][j];</code> / <code class="ic">Y[i][j] = A[j][i];</code>', '(5) <code class="ic">for (j=i+1; j&lt;n; j++)</code> で tmp 交換', '(7) <code class="ic">y[i] = 0;</code> → <code class="ic">y[i] += A[i][j] * x[j];</code>', '毎回 <code class="ic">gcc matrixKtest.c matrix.c</code> → in.txt → diff -Bw'],
+      trap: 'trans1 で j を 0 から回すと<b>2 回交換して元通り</b>。y[i] の初期化忘れ。matrix.c に main を書かない (テスト側にある)。',
+      code: 'void matrix_trans1(int n, double A[N][N])\n{\n  int i, j;\n  double tmp;\n  for (i=0; i<n; i++) {\n    for (j=i+1; j<n; j++) {\n      tmp = A[i][j]; A[i][j] = A[j][i]; A[j][i] = tmp;\n    }\n  }\n}' },
+  ];
+  const GRP = { A: ['var(--pink)', '型 A 値を複数返す', '問1'], B: ['var(--lav)', '型 B 構造体ポインタ', '問2'], C: ['var(--mint)', '型 C 配列と乱数', '問3'], D: ['var(--lemon)', '型 D 2 次元配列', '問4'] };
+  function reviewCards() {
+    const doneKey = 't1:rv';
+    const done = store.get(doneKey, {});
+    const meter = h('b', '0');
+    const upd = () => { meter.textContent = Object.values(done).filter(Boolean).length; };
+    const list = h('div.rv7', REVIEW.map((r, k) => {
+      const g = GRP[r.grp];
+      const cb = h('input', { type: 'checkbox', checked: !!done[r.id], onchange: () => { done[r.id] = cb.checked; store.set(doneKey, done); upd(); card.classList.toggle('ok', cb.checked); if (cb.checked) toast(r.id + ' を「説明できる」にしました', { type: 'ok' }); } });
+      const body = h('div.rv-body',
+        h('div.rv-ask', h('h6', '何を作る?'), h('p', { html: r.ask })),
+        h('div.rv-cols',
+          h('div.rv-need', h('h6', '試験に必要な要素'), h('ul', r.need.map((x) => h('li', { html: x })))),
+          h('div.rv-steps', h('h6', '解くステップ'), h('ol', r.steps.map((x) => h('li', { html: x }))))),
+        h('div.rv-trap', h('b', '落とし穴'), h('span', { html: r.trap })),
+        h('details.rv-code', h('summary', '要点のコード (自分で書いてから開く)'), U.codeBlock(r.code)),
+        h('div.rv-foot', h('label.rv-chk', cb, h('span.ck-box', { 'aria-hidden': 'true' }), h('span', '何も見ずに書ける / 説明できる')), h('a.btn.sm', { href: r.href }, '元の課題で練習', icon('arrow'))));
+      const card = h('details.rv-card' + (done[r.id] ? '.ok' : ''), { style: { '--rc': g[0], '--k': k }, open: k === 0 },
+        h('summary.rv-head', h('span.rv-id', r.id), h('span.rv-t', r.title), h('span.rv-meta', h('span.rv-grp', g[1]), h('span.rv-f', r.files), h('span.rv-mock', '→ 模擬 ' + g[2])), h('span.rv-arrow', { 'aria-hidden': 'true' }, '▾')),
+        body);
+      return card;
+    }));
+    upd();
+    return h('div', h('div.rv-top', h('div.rv-meter', meter, h('span', ' / 7 題 「何も見ずに書ける」')), h('div.rv-btns', h('button.btn.sm.ghost', { onclick: () => list.querySelectorAll('details.rv-card').forEach((d) => (d.open = true)) }, 'すべて開く'), h('button.btn.sm.ghost', { onclick: () => list.querySelectorAll('details.rv-card').forEach((d) => (d.open = false)) }, 'すべて閉じる'))), list);
+  }
+
+  /* 本番での 1 問の解き方 (共通ステップ) */
+  const EXAM_STEPS = [
+    { n: '1', t: '問題を読む (2 分)', d: '<b>作るファイル名・関数名・引数の型</b>に下線。配布ファイル (main 側, .h) と期待値を確認。「何を返すか」「どこに格納するか」を一言で言えるように。' },
+    { n: '2', t: 'ファイルを用意する', d: '問題からテストデータ・期待値・配布プログラムを<b>コピー＆ペースト</b>して D ドライブの指定フォルダに保存 (<code class="ic">in.txt</code>, <code class="ic">exp.txt</code> …)。<code class="ic">ls</code> で名前を確認。' },
+    { n: '3', t: '関数の「外枠」を書く', d: '#include (.h と標準ヘッダ) とプロトタイプどおりの関数の外枠だけ書き, <b>先に gcc を通す</b>。リンクまで通ればファイル構成は正しい。' },
+    { n: '4', t: '中身を書く', d: 'ポインタなら <code class="ic">*p =</code> / <code class="ic">p-&gt;x</code>, 配列なら<b>初期化</b>と<b>上限 n</b>。サンプルプログラムの書き方 (EOF, strcmp, exit) を写してよい。' },
+    { n: '5', t: 'gcc → リダイレクト → diff -Bw', d: '<code class="ic">gcc main.c sub.c -lm</code> → <code class="ic">./a &lt; in.txt &gt; out.txt</code> → <code class="ic">diff -Bw out.txt exp.txt</code>。<b>何も表示されなければ一致</b>。' },
+    { n: '6', t: '別の入力でも試す', d: '採点は問題にない入力でも行われる。<b>n を変える・負の値・0・境界</b>を自分で作って手計算と比べる。' },
+    { n: '7', t: '保存場所の最終確認', d: '指定フォルダ・指定ファイル名か, 余計な main が入っていないか。<b>2 問を完璧に</b> → 合格。迷ったら次の問題へ。' },
+  ];
+  function examSteps() {
+    return h('ol.xs', EXAM_STEPS.map((s, k) => h('li.xs-i', { style: { '--k': k } }, h('span.xs-n', s.n), h('div', h('b', s.t), h('p', { html: s.d })))));
+  }
+
   /* ---------- 重点復習マップ ---------- */
   function focusMap() {
     const items = [
@@ -289,7 +374,22 @@ void minmax(int a, int b, int c, int *mn, int *mx)
       ],
     },
     {
-      id: 'skills', num: '05', group: '2. 出題範囲', kicker: '必ずできるようにしておくこと', navTitle: 'リダイレクト・diff・分割コンパイル',
+      id: 'review7', num: '05', group: '2. 出題範囲', kicker: '資料が「特に復習」と名指しした 7 題', navTitle: '重点問題まとめ (7 題)',
+      title: '名指しされた 7 題を, 要素とステップに分解する。',
+      lead: '資料「中間試験 T1 について」が特に復習するよう挙げた 例題 (3-4) 課題 (3-4)(3-5) / 例題 (3-5) 課題 (3-7) / 課題 (3-10) / 課題 (4-1)。それぞれ「何を作るか」「試験に必要な要素」「解くステップ」「落とし穴」をまとめた。何も見ずに書けるようになったらチェック。',
+      blocks: [
+        { type: 'widget', title: '<span class="chip ptr">7 題</span> 重点問題カード — 開いて確認, 書けたらチェック', make: reviewCards },
+        { type: 'widget', title: '<span class="chip val">共通</span> 本番で 1 問を解く 7 ステップ', make: examSteps },
+        { type: 'cheat', items: [
+          { c: '型 A 値を複数返す', d: '例題 (3-4) 課題 (3-4)(3-5)。<b>仮引数 int *p, 本体 *p = …, 呼び出し &x</b>。', code: 'f(x, y, &q, &r);' },
+          { c: '型 B 構造体ポインタ', d: '例題 (3-5) 課題 (3-7)。<b>p-&gt;x, scanf には &p-&gt;x (文字列は & なし), EOF を返す</b>。', code: 'scanf("%lf", &p->x)' },
+          { c: '型 C 配列と乱数', d: '課題 (3-10)。<b>rand() % 6 + 1, カウンタ 0 初期化, srand は呼ばない</b>。', code: 'c[d1[i]+d2[i]+d3[i]]++;' },
+          { c: '型 D 2 次元配列', d: '課題 (4-1)。<b>A[N][N], 上限 n, 書式 " %9.5f", 自分の転置は半分だけ</b>。', code: 'for (j=i+1; j<n; j++)' },
+        ] },
+      ],
+    },
+    {
+      id: 'skills', num: '06', group: '2. 出題範囲', kicker: '必ずできるようにしておくこと', navTitle: 'リダイレクト・diff・分割コンパイル',
       title: 'リダイレクトと diff, 分割コンパイル。手が覚えるまで。',
       lead: '資料に「必ずできるようにしておくこと」と書かれた 2 つ。本番では毎問この手順を踏む。ここで手が勝手に動くまで練習しよう。',
       blocks: [
@@ -313,7 +413,7 @@ void minmax(int a, int b, int c, int *mn, int *mx)
       ],
     },
     {
-      id: 'mock', num: '06', group: '3. 模擬試験', kicker: 'Mock Exam — 70 min', navTitle: '模擬試験 (70 分)',
+      id: 'mock', num: '07', group: '3. 模擬試験', kicker: 'Mock Exam — 70 min', navTitle: '模擬試験 (70 分)',
       title: '本番と同じ 4 問・70 分・隠しテスト付き。',
       lead: '問1〜問4 は重点復習の 4 つの型に対応。テスト実行では「問題文の入力」の diff に加えて, 本番と同じく<b>表示していない入力</b>と<b>題意どおりか</b>も自動でチェックする。全部通れば 5 点, 1 つでも落ちれば 0 点。',
       blocks: [
@@ -323,7 +423,7 @@ void minmax(int a, int b, int c, int *mn, int *mx)
       ],
     },
     {
-      id: 'final', num: '07', group: 'まとめ', kicker: 'Last check', navTitle: '前日の最終確認',
+      id: 'final', num: '08', group: 'まとめ', kicker: 'Last check', navTitle: '前日の最終確認',
       title: '前日の夜に, これだけ見直す。',
       blocks: [
         { type: 'cheat', items: [

@@ -1864,3 +1864,51 @@ body::before, body::after { transform: translateZ(0); will-change: transform; }
 .hc-face svg, .hero-mem-card .hm-face svg, .tk-av svg { filter: none !important; }
 .ld-fg { filter: none !important; }
 .result-banner { overflow-wrap: anywhere; } .result-banner code.ic { white-space: pre-wrap; word-break: break-all; }
+
+/* ===================== T1 重点問題まとめ ===================== */
+.rv-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.rv-meter b { font-family: var(--f-disp); font-size: 30px; }
+.rv-meter span { color: var(--mute); font-weight: 700; }
+.rv-btns { display: flex; gap: 6px; }
+.rv7 { display: flex; flex-direction: column; gap: 12px; }
+.rv-card { border: var(--bw) solid var(--ink); border-radius: 22px; background: #fff; box-shadow: var(--sh-s); overflow: hidden; }
+.rv-card.ok { background: linear-gradient(#fff, #fff) padding-box; box-shadow: 3px 3px 0 var(--ok); }
+.rv-head { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: center; padding: 14px 18px; border-left: 12px solid var(--rc); }
+.rv-head::-webkit-details-marker { display: none; }
+.rv-id { font-family: var(--f-disp); font-weight: 700; font-size: 18px; white-space: nowrap; }
+.rv-t { font-weight: 900; font-size: 15px; }
+.rv-arrow { grid-row: 1 / 3; grid-column: 3; font-size: 18px; transition: transform .3s var(--spring); }
+.rv-card[open] .rv-arrow { transform: rotate(180deg); }
+.rv-meta { grid-column: 1 / 3; display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+.rv-grp, .rv-f, .rv-mock { padding: 2px 10px; border-radius: 99px; border: 1.5px solid var(--ink); font-weight: 700; }
+.rv-grp { background: var(--rc); }
+.rv-f { background: var(--well); font-family: var(--f-mono); font-weight: 500; }
+.rv-mock { color: var(--ptr); border-color: var(--ptr); }
+.rv-card.ok .rv-id::after { content: ' ✓'; color: var(--ok); }
+.rv-body { padding: 4px 18px 18px; display: flex; flex-direction: column; gap: 12px; border-top: 2px dashed var(--line); }
+.rv-body h6 { margin: 10px 0 6px; font-size: 12.5px; letter-spacing: .06em; color: var(--mute); }
+.rv-ask p { margin: 0; font-size: 14.5px; line-height: 1.75; }
+.rv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.rv-need, .rv-steps { background: var(--well); border-radius: 16px; padding: 4px 14px 12px; }
+.rv-need ul, .rv-steps ol { margin: 0; padding-left: 1.3em; font-size: 13.5px; line-height: 1.75; }
+.rv-steps ol li::marker { font-family: var(--f-disp); font-weight: 700; color: var(--ptr); }
+.rv-trap { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 14px; background: var(--ng-soft); font-size: 13.5px; line-height: 1.7; }
+.rv-trap b { flex: none; padding: 1px 10px; border-radius: 99px; background: var(--ng); color: #fff; font-size: 12px; margin-top: 2px; }
+.rv-code summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--val); }
+.rv-code .code { margin-top: 8px; }
+.rv-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.rv-chk { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; font-size: 14px; position: relative; }
+.rv-chk input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.rv-chk input:checked + .ck-box { background: var(--ok); }
+.rv-chk input:checked + .ck-box::after { transform: rotate(45deg) scale(1); }
+.rv-chk input:focus-visible + .ck-box { outline: 3px solid var(--val); outline-offset: 2px; }
+.xs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 12px; counter-reset: none; }
+.xs-i { display: flex; gap: 12px; padding: 14px; border: var(--bw) solid var(--ink); border-radius: 18px; background: #fff; box-shadow: var(--sh-s); }
+.xs-n { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--ink); background: var(--lemon); font-family: var(--f-disp); font-weight: 700; }
+.xs-i > div > b { display: block; font-size: 14.5px; margin-bottom: 4px; }
+.xs-i p { margin: 0; font-size: 13px; line-height: 1.7; color: var(--ink-2); }
+@media (max-width: 760px) {
+  .rv-cols { grid-template-columns: 1fr; }
+  .rv-head { padding: 12px 14px; border-left-width: 8px; }
+  .rv-body { padding: 4px 14px 14px; }
+}
