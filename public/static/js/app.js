@@ -585,9 +585,24 @@
       }));
     });
     setTimeout(() => { if (tiles.firstChild && matchMedia('(pointer: coarse)').matches) U.swipeHint(tiles.firstChild); }, 400);
+    // 回 (set) のある単元: タイルを回ごとに切り替える (T1 模擬試験)
+    let setBar = null;
+    if (U0.tasks.some((t) => t.set)) {
+      const sets = [...new Set(U0.tasks.map((t) => t.set || 0))];
+      const label = (k) => (k ? '第 ' + k + ' 回' : '腕試し');
+      const cur0 = () => store.get(unitId + ':set', 1);
+      const paint = (k) => {
+        setBar.querySelectorAll('button').forEach((b) => { const on = +b.dataset.k === k; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+        tiles.querySelectorAll('.task-tile').forEach((tl) => { const t = U0.tasks.find((x) => x.id === tl.dataset.id); const w = tl.closest('.sw') || tl; w.style.display = (t.set || 0) === k ? '' : 'none'; });
+      };
+      setBar = h('div.tabs.set-tabs', { role: 'tablist', 'aria-label': '回を選ぶ' }, sets.map((k) => h('button', { role: 'tab', 'data-k': k, onclick: () => { store.set(unitId + ':set', k); document.dispatchEvent(new CustomEvent(unitId + ':set', { detail: k })); } }, label(k))));
+      document.addEventListener(unitId + ':set', (e) => { paint(e.detail); const t = U0.tasks.find((x) => (x.set || 0) === e.detail); if (t && (!cur || (U0.tasks.find((x) => x.id === cur).set || 0) !== e.detail)) open(t.id, true); });
+      setTimeout(() => paint(cur0()), 0);
+    }
     function open(id, silent) {
       const t = U0.tasks.find((x) => x.id === id);
       if (!t) return;
+      if (setBar && (t.set || 0) !== store.get(unitId + ':set', 1)) { store.set(unitId + ':set', t.set || 0); setBar.querySelectorAll('button').forEach((b) => { const on = +b.dataset.k === (t.set || 0); b.classList.toggle('on', on); b.setAttribute('aria-selected', on); }); tiles.querySelectorAll('.task-tile').forEach((tl) => { const x = U0.tasks.find((y) => y.id === tl.dataset.id); (tl.closest('.sw') || tl).style.display = (x.set || 0) === (t.set || 0) ? '' : 'none'; }); if (t.set) document.dispatchEvent(new CustomEvent(unitId + ':set', { detail: t.set })); }
       cur = id;
       tiles.querySelectorAll('.task-tile').forEach((x) => x.classList.toggle('on', x.dataset.id === id));
       host.innerHTML = '';
@@ -597,10 +612,10 @@
     }
     labApi = { open };
     const labRoot = h('div');
-    U.whenNear(labRoot, () => { if (!cur) open(U0.tasks[0].id, true); });
+    U.whenNear(labRoot, () => { if (!cur) { const k = store.get(unitId + ':set', 1); open((U0.tasks.find((x) => (x.set || 0) === k && setBar) || U0.tasks[0]).id, true); } });
     void cur;
     [...tiles.querySelectorAll('.task-tile')].forEach((t, k) => t.style.setProperty('--k', k));
-    labRoot.append(labDash(U0), tiles, host);
+    labRoot.append(labDash(U0), setBar || '', tiles, host);
     return labRoot;
   }
 

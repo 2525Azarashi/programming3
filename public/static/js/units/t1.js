@@ -57,9 +57,16 @@ void minmax(int a, int b, int c, int *mn, int *mx)
   };
 
   /* ---------- 70 分タイマー + 得点ボード ---------- */
-  const TKEY = 't1:timer';
+  const SETS = {
+    1: { ids: ['q1', 'q2', 'q3', 'q4'], name: '第 1 回', sub: '基本 — 重点 4 型そのまま', theme: 'hms / 三角形 / サイコロ 2 個 / 行列の積' },
+    2: { ids: ['r2q1', 'r2q2', 'r2q3', 'r2q4'], name: '第 2 回', sub: '標準 — 関数から関数へ・判定', theme: 'sort3 / 割引 / 最長連続 / 対称行列' },
+    3: { ids: ['r3q1', 'r3q2', 'r3q3', 'r3q4'], name: '第 3 回', sub: '応用 — 入れ子・境界値・exit', theme: '最小最大平均 / 2 円の関係 / 度数分布 / 行の入替え' },
+  };
+  const curSet = () => store.get('t1:set', 1);
+  const TKEY0 = 't1:timer';
   const LIMIT = 70 * 60 * 1000;
   function examTimer() {
+    let TKEY = TKEY0 + ':' + curSet();
     let st = store.get(TKEY, { start: 0, used: 0, run: false });
     const R0 = 88, C0 = 2 * Math.PI * R0;
     const ring = h('div.t1-ring', { html: `<svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="${R0}" class="t1-bg"/><circle cx="100" cy="100" r="${R0}" class="t1-fg" style="stroke-dasharray:${C0} ${C0}"/></svg>` });
@@ -70,8 +77,25 @@ void minmax(int a, int b, int c, int *mn, int *mx)
     const bReset = h('button.btn.ghost', { onclick: reset }, icon('reset'), 'リセット');
     const board = h('div.t1-board');
     const score = h('div.t1-score');
-    const el = h('div.t1-timer', ring, h('div.t1-tside', h('div.t1-tbtn', bStart, bReset), score, board,
-      h('p.c-mute.t1-tnote', 'タイマーはページを閉じても進み続けます (本番と同じく止まらない)。問1〜問4 を「テスト実行」で隠しテストまで通すと得点が入ります。')));
+    const setTabs = h('div.t1-sets', { role: 'tablist', 'aria-label': '模擬試験の回' }, Object.keys(SETS).map((k) => {
+      const S = SETS[k];
+      return h('button.t1-set', { role: 'tab', 'data-k': k, onclick: () => pickSet(+k) }, h('b', S.name), h('span', S.sub), h('i.t1-set-pts'));
+    }));
+    function pickSet(k) {
+      store.set('t1:set', k);
+      document.dispatchEvent(new CustomEvent('t1:set', { detail: k }));
+    }
+    let shown = curSet();
+    document.addEventListener('t1:set', (e) => {
+      const k = e.detail;
+      if (k !== shown) {
+        if (st.run) { st = { start: 0, used: st.used + (Date.now() - st.start), run: false }; store.set(TKEY, st); toast(SETS[shown].name + ' のタイマーを一時停止しました', { type: 'info' }); }
+        shown = k; TKEY = TKEY0 + ':' + k; st = store.get(TKEY, { start: 0, used: 0, run: false }); fired.clear();
+      }
+      upd(); draw();
+    });
+    const el = h('div.t1-timer', setTabs, ring, h('div.t1-tside', h('div.t1-tbtn', bStart, bReset), score, board,
+      h('p.c-mute.t1-tnote', 'タイマーはページを閉じても進み続けます (本番と同じく止まらない)。問1〜問4 を「テスト実行」で隠しテストまで通すと得点が入ります。回ごとにタイマーと得点は別々に記録されます。')));
     const elapsed = () => st.used + (st.run ? Date.now() - st.start : 0);
     const fired = new Set();
     function fmt(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
@@ -96,10 +120,11 @@ void minmax(int a, int b, int c, int *mn, int *mx)
     }
     function upd() {
       const p = store.get('progress:t1', { predict: {}, tasks: {} });
-      const ids = ['q1', 'q2', 'q3', 'q4'];
+      const ids = SETS[curSet()].ids;
       const pts = ids.filter((i) => p.tasks[i] === 'done').length * 5;
+      setTabs.querySelectorAll('.t1-set').forEach((b) => { const k = +b.dataset.k; const on = k === curSet(); b.classList.toggle('on', on); b.setAttribute('aria-selected', on); const sp = SETS[k].ids.filter((i) => p.tasks[i] === 'done').length * 5; const pi = b.querySelector('.t1-set-pts'); pi.textContent = sp + ' 点'; pi.className = 't1-set-pts' + (sp >= 10 ? ' ok' : ''); });
       board.innerHTML = '';
-      ids.forEach((i, k) => board.appendChild(h('a.t1-q' + (p.tasks[i] === 'done' ? '.done' : p.tasks[i] === 'try' ? '.try' : ''), { href: '#task-' + i, onclick: (e) => { e.preventDefault(); const T = window.__t1open; if (T) T(i); } }, h('b', '問' + (k + 1)), h('span', p.tasks[i] === 'done' ? '5 点' : p.tasks[i] === 'try' ? '挑戦中' : '—'))));
+      ids.forEach((i, k) => board.appendChild(h('a.t1-q' + (p.tasks[i] === 'done' ? '.done' : p.tasks[i] === 'try' ? '.try' : ''), { href: '#task-' + i, onclick: (e) => { e.preventDefault(); const T = window.__t1open; if (T) T(i); } }, h('b', SETS[curSet()].name.replace(/\s/g, '') + ' 問' + (k + 1)), h('span', p.tasks[i] === 'done' ? '5 点' : p.tasks[i] === 'try' ? '挑戦中' : '—'))));
       score.innerHTML = '';
       score.append(h('div.t1-pts', h('b', String(pts)), h('span', '/ 20 点')), h('div.t1-bar', h('i', { style: { width: pts * 5 + '%' } }), h('s', { title: '合格ライン 10 点' })), h('div.t1-pass' + (pts >= 10 ? '.ok' : ''), pts >= 10 ? '✓ 合格ライン (10 点) 到達!' : 'あと ' + (10 - pts) + ' 点で合格ライン'));
     }
@@ -108,6 +133,17 @@ void minmax(int a, int b, int c, int *mn, int *mx)
     setInterval(draw, 500);
     setInterval(upd, 1500);
     return el;
+  }
+
+  function setOverview() {
+    const T = Object.fromEntries((window.T1_TASKS || []).map((t) => [t.id, t]));
+    const kinds = ['型 A 値を複数返す', '型 B 構造体ポインタ', '型 C 配列と乱数', '型 D 2 次元配列'];
+    const cols = ['var(--pink)', 'var(--lav)', 'var(--mint)', 'var(--lemon)'];
+    const tbl = h('div.t1-ov', h('div.t1-ov-h', h('span'), ...kinds.map((k, i) => h('span', { style: { '--oc': cols[i] } }, k))),
+      ...Object.keys(SETS).map((k) => h('div.t1-ov-r', h('b', SETS[k].name, h('small', SETS[k].sub)), ...SETS[k].ids.map((id, i) => {
+        const t = T[id] || {}; return h('button.t1-ov-c', { style: { '--oc': cols[i] }, onclick: () => { store.set('t1:set', +k); document.dispatchEvent(new CustomEvent('t1:set', { detail: +k })); if (window.__t1upd) window.__t1upd(); if (window.__t1open) window.__t1open(id); } }, h('code', (t.files || [''])[0]), h('span', t.short || ''));
+      }))));
+    return tbl;
   }
 
   /* ---------- 当日の手順チェックリスト ---------- */
@@ -413,11 +449,12 @@ void minmax(int a, int b, int c, int *mn, int *mx)
       ],
     },
     {
-      id: 'mock', num: '07', group: '3. 模擬試験', kicker: 'Mock Exam — 70 min', navTitle: '模擬試験 (70 分)',
-      title: '本番と同じ 4 問・70 分・隠しテスト付き。',
-      lead: '問1〜問4 は重点復習の 4 つの型に対応。テスト実行では「問題文の入力」の diff に加えて, 本番と同じく<b>表示していない入力</b>と<b>題意どおりか</b>も自動でチェックする。全部通れば 5 点, 1 つでも落ちれば 0 点。',
+      id: 'mock', num: '07', group: '3. 模擬試験', kicker: 'Mock Exam — 70 min', navTitle: '模擬試験 (70 分 × 3 回)',
+      title: '本番と同じ 4 問・70 分・隠しテスト付き。全 3 回。',
+      lead: '第 1 回〜第 3 回, どの回も問1〜問4 が重点復習の 4 つの型 (値を複数返す / 構造体ポインタ / 配列と乱数 / 2 次元配列) に対応し, 回を追うごとに少しずつ難しくなる。テスト実行では「問題文の入力」の diff に加えて, 本番と同じく<b>表示していない入力</b>と<b>題意どおりか</b>も自動でチェックする。全部通れば 5 点, 1 つでも落ちれば 0 点。',
       blocks: [
         { type: 'widget', title: '<span class="chip ptr">TIMER</span> 70 分タイマーと得点', make: examTimer },
+        { type: 'widget', title: '<span class="chip vio">3 SETS</span> 各回の出題 — どの回も 4 つの型が 1 問ずつ', make: setOverview },
         { type: 'callout', kind: 'tip', html: '<b>本番のつもりで</b>: ヒントと模範解答は見ずに, ターミナルボタンで <code class="ic">gcc</code> → <code class="ic">./a &lt; in &gt; out.txt</code> → <code class="ic">diff -Bw</code> の手順も踏んでみよう。期待値は gcc (Linux) で模範解答を実行して作ったもの。「腕試し」はサンプルプログラムの技 (exit, 文字列) を使う追加問題 (得点外)。' },
         { type: 'lab' },
       ],
@@ -438,10 +475,12 @@ void minmax(int a, int b, int c, int *mn, int *mx)
         ] },
         { type: 'widget', title: '練習記録', make: () => {
           const p = store.get('progress:t1', { predict: {}, tasks: {} });
-          const n = ['q1', 'q2', 'q3', 'q4'].filter((i) => p.tasks[i] === 'done').length;
+          const per = Object.keys(SETS).map((k) => SETS[k].ids.filter((i) => p.tasks[i] === 'done').length);
+          const n = Math.max(...per); const passed = per.filter((x) => x >= 2).length;
           const ck = Object.values(store.get('t1:ck', {})).filter(Boolean).length;
           return Infog.make({ kind: 'stats', tag: 'READY?', title: 'あなたの準備状況', items: [
-            { value: n * 5, suffix: '点', label: '模擬試験の得点 (20 点満点)', color: n >= 2 ? 'ok' : 'ptr' },
+            { value: n * 5, suffix: '点', label: '模擬試験の最高点 (20 点満点)', color: n >= 2 ? 'ok' : 'ptr' },
+            { value: passed, suffix: ' / 3', label: '合格ライン (10 点) を超えた回', color: passed ? 'ok' : 'ptr' },
             { value: ['p0', 'p1'].filter((i) => p.predict[i]).length, label: 'サンプルの予想問題 (2 問)', color: 'addr' },
             { value: ck, label: '手順チェックリスト (10 項目)', color: 'vio' },
           ] });

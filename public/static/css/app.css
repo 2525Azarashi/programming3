@@ -1912,3 +1912,39 @@ body::before, body::after { transform: translateZ(0); will-change: transform; }
   .rv-head { padding: 12px 14px; border-left-width: 8px; }
   .rv-body { padding: 4px 14px 14px; }
 }
+
+/* ===================== T1 模擬試験 3 回 ===================== */
+.t1-sets { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.t1-set { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px; border: 2px solid var(--ink); border-radius: 16px; background: #fff; font: inherit; color: var(--ink); text-align: left; cursor: pointer; box-shadow: var(--sh-s); transition: transform .25s var(--spring), background .2s; }
+.t1-set:hover { transform: translateY(-2px); }
+.t1-set b { font-family: var(--f-disp); font-size: 17px; }
+.t1-set span { font-size: 12px; color: var(--mute); font-weight: 700; }
+.t1-set.on { background: var(--ink); color: #fff; }
+.t1-set.on span { color: #f3dbe6; }
+.t1-set-pts { position: absolute; right: 10px; top: 10px; font-style: normal; font-size: 12px; font-weight: 900; padding: 1px 8px; border-radius: 99px; background: var(--well); color: var(--ink); border: 1.5px solid var(--ink); }
+.t1-set-pts.ok { background: var(--ok); color: #fff; }
+.t1-ov { display: grid; gap: 8px; overflow-x: auto; }
+.t1-ov-h, .t1-ov-r { display: grid; grid-template-columns: 130px repeat(4, minmax(150px, 1fr)); gap: 8px; align-items: stretch; min-width: 720px; }
+.t1-ov-h span { font-size: 12px; font-weight: 900; padding: 4px 10px; border-radius: 99px; background: var(--oc); border: 1.5px solid var(--ink); text-align: center; }
+.t1-ov-h span:first-child { background: none; border: 0; }
+.t1-ov-r > b { display: flex; flex-direction: column; justify-content: center; font-family: var(--f-disp); font-size: 17px; }
+.t1-ov-r > b small { font-family: var(--f-jp); font-size: 11px; color: var(--mute); font-weight: 700; }
+.t1-ov-c { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 2px solid var(--ink); border-left: 8px solid var(--oc); border-radius: 14px; background: #fff; font: inherit; color: var(--ink); text-align: left; cursor: pointer; transition: transform .25s var(--spring), box-shadow .25s; }
+.t1-ov-c:hover { transform: translateY(-2px); box-shadow: var(--sh-s); }
+.t1-ov-c code { font-family: var(--f-mono); font-size: 12px; font-weight: 700; }
+.t1-ov-c span { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.set-tabs { margin: 14px 0 10px; }
+@media (max-width: 760px) {
+  .t1-sets { grid-template-columns: 1fr; }
+  .t1-set { flex-direction: row; align-items: center; gap: 10px; }
+  .t1-set-pts { position: static; margin-left: auto; }
+}
+
+@media (max-width: 760px) {
+  .t1-timer { grid-template-columns: 1fr; }
+  .t1-sets { width: 100%; gap: 6px; }
+  .t1-set { padding: 8px 10px; }
+  .t1-set b { font-size: 15px; }
+  .t1-set span { font-size: 11px; }
+  .t1-set-pts { position: static; margin-top: 4px; }
+}
