@@ -53,7 +53,17 @@
     const each = (v, fr) => { const o = []; flatten(v.name, v.addr, v.t, o, fr); for (const c of o) idx.set(c.addr, c); };
     step.frames.forEach((f) => f.vars.forEach((v) => each(v, f.fn)));
     step.globals.forEach((v) => each(v, 'global'));
+    (step.heap || []).forEach((b) => { const v = heapVar(b); if (v.t) each(v, 'heap'); });
     return idx;
+  }
+
+  /* ---- ヒープブロック → 仮の変数 (heap#N, 型が分かれば配列として) ---- */
+  function heapVar(b) {
+    const name = 'heap#' + b.id;
+    if (!b.tt || !b.tt.size) return { name, addr: b.a, t: null, b };
+    const n = Math.max(1, Math.floor(b.n / b.tt.size));
+    const t = n === 1 && b.tt.k === 'struct' ? b.tt : { k: 'arr', of: b.tt, n, size: b.tt.size * n };
+    return { name, addr: b.a, t, b };
   }
 
   /* ---- キャプション (直前の 1 文で何が起きたか) ---- */
@@ -72,9 +82,13 @@
       const f = prev.frames[prev.frames.length - 1];
       lines.push({ ic: '↰', html: '<b>' + f.fn + '</b> から戻りました。' + f.fn + ' のデータ領域 (変数 ' + U.esc(f.vars.map((v) => v.name).join(', ') || 'なし') + ') は<b>消えます</b>。' });
     }
+    const ph = new Set((prev.heap || []).map((b) => b.id)), nh = new Set((s.heap || []).map((b) => b.id));
+    (s.heap || []).forEach((b) => { if (!ph.has(b.id)) lines.push({ ic: '⊕', html: (b.from ? '<b>realloc</b>: heap#' + b.from + ' の中身をコピーした新しい領域' : '<b>malloc</b>: OS (ヒープ) から') + ' <b>' + b.n + ' バイト</b>を借りました → <b class="c-heap">heap#' + b.id + '</b> <span class="c-addr">' + b.a + ' 番地〜</span>' + (b.zero ? ' <span class="c-mute">(calloc なので 0 で初期化)</span>' : ' <span class="c-mute">(中身はまだ不定)</span>') }); });
+    (prev.heap || []).forEach((b) => { if (!nh.has(b.id)) lines.push({ ic: '⊖', html: '<b>free</b>: <b class="c-heap">heap#' + b.id + '</b> (' + b.n + ' バイト) を OS に<b>返却</b>しました。もう使えません' }); });
     const allocs = [], sets = [];
     for (const c of s.log) {
-      if (c.n && !c.o) allocs.push(c);
+      if (c.n && !c.o && c.a >= 5000000 && c.n.v !== undefined) sets.push(c);
+      else if (c.n && !c.o) allocs.push(c);
       else if (c.n && c.o && c.o.v !== c.n.v) sets.push(c);
       else if (c.n && c.o && c.o.v === c.n.v && c.o.v === undefined) { /* noop */ }
       else if (c.n && c.o) sets.push(c);
@@ -152,6 +166,20 @@
       const fr = h('div.mem-frame.global', h('div.mem-fh', h('span', h('b', 'global / static'), ' 領域'), h('span', '')));
       const rows = h('div.mem-rows');
       step.globals.forEach((v) => rows.appendChild(varRow(v, mem, changed, targets, opt)));
+      fr.appendChild(rows); root.appendChild(fr);
+    }
+    if (step.heap && (step.heap.length || opt.heapAlways)) {
+      const tot = step.heap.reduce((x, b) => x + b.n, 0);
+      const fr = h('div.mem-frame.heap', h('div.mem-fh', h('span', h('b', 'ヒープ'), ' malloc で借りた領域'), h('span', step.heap.length + ' ブロック · ' + tot + ' バイト')));
+      const rows = h('div.mem-rows');
+      if (!step.heap.length) rows.appendChild(h('div.mem-empty', '(借りている領域はありません)'));
+      step.heap.forEach((b) => {
+        const v = heapVar(b);
+        if (!v.t) { rows.appendChild(h('div.mr.heap-raw', { 'data-row': b.a }, h('div.ad', String(b.a), h('small', hex(b.a))), h('div.nm', v.name, h('small', b.n + ' バイト')), h('div.bx.w8.uninit', { 'data-addr': b.a }, '?', h('span.sub', '型未定')))); return; }
+        const el = varRow(v, mem, changed, targets, opt);
+        if (el.classList.contains('mem-group')) { const gl = el.querySelector('.gl .c-mute'); if (gl) gl.textContent = 'malloc ' + b.n + ' バイト · ' + tstr(v.t) + ' として使用 · 先頭 ' + b.a + ' 番地'; }
+        rows.appendChild(el);
+      });
       fr.appendChild(rows); root.appendChild(fr);
     }
     host.innerHTML = '';
@@ -272,7 +300,8 @@
       h('span', h('i', { style: { background: 'var(--ptr-soft)', border: '1px solid rgba(242,70,127,.6)' } }), 'ポインタ (番地を格納)'),
       h('span', h('i', { style: { border: '1px dashed rgba(74,44,66,.3)' } }), '未初期化 (不定)'),
       h('span', h('i', { style: { background: 'rgba(217,127,0,.25)' } }), '直前に変化'),
-      h('span', h('b', { style: { color: 'var(--addr)', fontSize: '11px' } }, '100'), '番地'));
+      h('span', h('b', { style: { color: 'var(--addr)', fontSize: '11px' } }, '100'), '番地'),
+      h('span', h('i', { style: { background: '#efe7ff', border: '1px solid rgba(127,92,240,.6)' } }), 'ヒープ (malloc)'));
   }
 
   /* =====================================================================
@@ -389,7 +418,8 @@
       }
       paintOut();
       const last = i === res.steps.length - 1;
-      el.querySelector('.exitc').textContent = last ? (res.error ? 'エラーで停止' : res.truncated ? '途中まで表示 (ステップ上限)' : 'return ' + res.exit) : '';
+      const lk = res.heap && res.heap.leaks.length;
+      el.querySelector('.exitc').textContent = last ? (res.error ? 'エラーで停止' : res.truncated ? '途中まで表示 (ステップ上限)' : 'return ' + res.exit + (lk ? ' · ⚠ free 忘れ ' + lk + ' ブロック' : '')) : '';
       range.value = i;
       cnt.textContent = (i + 1) + ' / ' + res.steps.length;
       btnPrev.disabled = btnFirst.disabled = i === 0;

@@ -282,3 +282,42 @@
       ] } },
   };
 })();
+/* B5 */
+(function () {
+  'use strict';
+  const I = window.INFOG;
+  I.b5 = {
+    intro: { top: { kind: 'stats', tag: 'B5 IN NUMBERS', title: 'この単元の数字', items: [
+      { value: 8, suffix: 'B', label: 'ポインタ 1 つ (sizeof p_array)', color: 'pink' },
+      { value: 1, suffix: 'B', label: "文字列に足す '\\0' の分", color: 'mint' },
+      { value: 2, suffix: '×', label: 'realloc で伸ばす倍率 (istack)', color: 'lemon' },
+      { value: 64, label: 'istacktest.c で最後に届く size', color: 'sky' },
+    ] } },
+    free: { top: { kind: 'pipeline', tag: 'LIFECYCLE', title: '動的領域の一生 — 借りる・確かめる・使う・返す',
+      steps: [
+        { icon: 'm', label: 'malloc', sub: 'sizeof(型)×個数', color: 'sky' },
+        { icon: '?', label: 'NULL チェック', sub: 'exit(1)', color: 'lemon' },
+        { icon: '[]', label: '使う', sub: 'a[i] / p->x', color: 'mint' },
+        { icon: 'f', label: 'free', sub: '必ず 1 回', color: 'pink' },
+        { icon: '0', label: '= NULL', sub: '誤用を防ぐ', color: 'lav' },
+      ] } },
+    string: { top: { kind: 'memstrip', tag: 'STRCLONE', title: '<code class="ic">strclone("abc")</code> が借りるのは <b>4 バイト</b>', base: 5000000, cell: 1,
+      vars: [
+        { name: 'c[0]', type: 'char', size: 1, val: "'a'", color: 'lav' },
+        { name: 'c[1]', type: 'char', size: 1, val: "'b'", color: 'lav' },
+        { name: 'c[2]', type: 'char', size: 1, val: "'c'", color: 'lav' },
+        { name: 'c[3]', type: 'char', size: 1, val: "'\\0'", color: 'pink' },
+      ], note: 'strlen("abc") は 3。終わりの印 \\0 を入れる場所として +1 が必要。' } },
+    struct: { top: { kind: 'bars', tag: 'PREF_T', title: '<code class="ic">pref_t</code> 1 つ = 32 バイト (このサイト / gcc)', max: 16,
+      items: [
+        { label: '<code class="ic">char name[16]</code>', value: 16, unit: 'Byte', color: 'pink' },
+        { label: '<code class="ic">double area</code>', value: 8, unit: 'Byte', color: 'sky', cells: true },
+        { label: '<code class="ic">int population</code>', value: 4, unit: 'Byte', color: 'mint', cells: true },
+      ], note: '合計 28 バイトだが, 構造体の大きさは double の位置合わせのため 32 バイトになる。' } },
+    stack: { top: { kind: 'compare2', tag: 'PUSH / POP', title: 'sp だけで, 入れる場所と取り出す場所が決まる',
+      lanes: [
+        { title: '<b>push(s, d)</b>', color: 'mint', steps: ['満杯 (sp == size) なら realloc で 2 倍', '<code class="ic">data[sp] = d;</code>', '<code class="ic">sp++;</code>'] },
+        { title: '<b>pop(s)</b>', color: 'pink', steps: ['空 (sp == 0) なら 0 を返す', '<code class="ic">sp--;</code>', '<code class="ic">return data[sp];</code>'] },
+      ], note: 'pop した値は消さなくて良い。sp より後ろは「無いもの」として扱われる。' } },
+  };
+})();

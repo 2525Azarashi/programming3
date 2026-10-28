@@ -443,7 +443,7 @@
   }
 
   /* ---------- 実行 ---------- */
-  const STACK_BASE = 100, GLOBAL_BASE = 300000, STR_BASE = 400000, BIG_BASE = 1000000;
+  const STACK_BASE = 100, GLOBAL_BASE = 300000, STR_BASE = 400000, BIG_BASE = 1000000, HEAP_BASE = 5000000, HEAP_MAX = 16 * 1024 * 1024;
 
   function run(files, mainName, opt) {
     opt = opt || {};
@@ -494,6 +494,54 @@
     function scalarSize(t) { return t.k === 'ptr' ? 8 : t.size; }
     let curLoc = null;
     const staticStore = new Map();
+    /* ---- ヒープ (malloc / calloc / realloc / free) ----
+       ブロックは番地の昇順に追加される。セルは「型付きで最初に書き込まれた時」に作る (malloc 直後は中身が不定) */
+    const heap = []; let heapLive = [], htop = HEAP_BASE, hbytes = 0, hid = 0;
+    function blockAt(a) {
+      let lo = 0, hi = heap.length - 1;
+      while (lo <= hi) { const m = (lo + hi) >> 1, b = heap[m]; if (a < b.a) hi = m - 1; else if (a >= b.a + Math.max(b.n, 1)) lo = m + 1; else return b; }
+      return null;
+    }
+    function blockBelow(a) { let r = null; for (const b of heap) { if (b.a <= a) r = b; else break; } return r; }
+    const bName = (b) => 'heap#' + b.id;
+    function heapMiss(a, size, write) {
+      const b = blockAt(a);
+      if (b) {
+        if (!b.live) fail(fmtA(a) + ' 番地は free 済み (返却済み) の領域です。free した後のポインタを使っています (free の後に NULL を代入する習慣をつけよう)');
+        if (a + size > b.a + b.n) fail(bName(b) + ' (malloc で ' + b.n + ' バイト確保) の範囲を超えてアクセスしています。確保するバイト数 (sizeof(型) * 要素数) が足りていますか?');
+        return b;
+      }
+      if (a >= HEAP_BASE) {
+        const p = blockBelow(a);
+        if (p && p.live) fail(fmtA(a) + ' 番地は ' + bName(p) + ' (malloc で ' + p.n + ' バイト確保, ' + p.a + ' 番地〜) の範囲外です。確保したサイズを超えて' + (write ? '書き込もう' : '読もう') + 'としています (要素数の計算や \\0 の 1 バイト分を確認)');
+        if (p && !p.live) fail(fmtA(a) + ' 番地は free 済み (返却済み) の領域です');
+      }
+      return null;
+    }
+    function hint(v, t) {
+      if (t && t.k === 'ptr' && t.to.k !== 'void' && v >= HEAP_BASE) { const b = blockAt(v); if (b && b.a === v && !b.tt) b.tt = t.to; }
+    }
+    function hAlloc(n, zero, l) {
+      n = Math.trunc(n);
+      if (n < 0 || hbytes + n > HEAP_MAX) return 0;
+      const b = { a: htop, n, live: true, zero: !!zero, id: ++hid, loc: l };
+      htop = Math.ceil((htop + Math.max(n, 1)) / 16) * 16 + 16;   /* ブロック間にすき間 (はみ出し検出用) */
+      hbytes += n; heap.push(b); heapLive = heapLive.concat([b]);
+      return b.a;
+    }
+    function hFree(a, l, who) {
+      if (a === 0) return null;
+      const b = blockAt(a);
+      if (!b || b.a !== a) {
+        if (b && !b.live) fail('二重 free: ' + bName(b) + ' はすでに free されています', l);
+        if (b) fail(who + ' に渡した番地 ' + a + ' は ' + bName(b) + ' の先頭 (' + b.a + ') ではありません。malloc が返した番地そのものを渡してください', l);
+        fail(who + ' に渡した番地 ' + fmtA(a) + ' は malloc で借りた領域ではありません (配列や変数の番地は free できません)', l);
+      }
+      if (!b.live) fail('二重 free: ' + bName(b) + ' (' + b.a + ' 番地) はすでに free されています', l);
+      for (let x = b.a; x < b.a + b.n; x++) if (mem.has(x)) setCell(x, null);
+      b.live = false; hbytes -= b.n; heapLive = heapLive.filter((y) => y !== b);
+      return b;
+    }
 
     const fail = (m, l) => { throw new CError(m, l || curLoc); };
     const fmtA = (a) => String(a) + ' (0x' + a.toString(16) + ')';
@@ -503,6 +551,9 @@
       for (const f of frames) for (const v of f.vars) all.push(v);
       for (const v of gvars) all.push(v);
       for (const v of all) { const r = sub(v.name, v.addr, v.t, a); if (r) return r; }
+      const hb = a >= HEAP_BASE ? blockAt(a) : null;
+      if (hb && hb.tt && hb.tt.size) { const n = Math.floor(hb.n / hb.tt.size); const r = sub(bName(hb), hb.a, arr(hb.tt, Math.max(n, 1)), a); if (r) return r; }
+      if (hb) return bName(hb) + '+' + (a - hb.a);
       return null;
       function sub(nm, base, t, x) {
         if (x < base || x >= base + t.size) return null;
@@ -527,6 +578,10 @@
       if (t.k === 'arr' || t.k === 'struct') return a;
       const c = mem.get(a);
       if (a === 0) fail('NULL ポインタ (0 番地) の中身を読もうとしました');
+      if (!c && a >= HEAP_BASE) {
+        const b = heapMiss(a, scalarSize(t), false);
+        if (b) { if (b.zero) return 0; fail('未初期化の値を読みました: ' + (nameAt(a) || fmtA(a) + ' 番地') + ' (malloc で借りた直後の領域の中身は不定です。値を代入してから読もう)'); }
+      }
       if (!c) fail(fmtA(a) + ' 番地は確保されていない領域です。存在しない変数の番地を読もうとしています (不正なメモリアクセス)');
       const want = cellKind(t);
       if (c.t !== want && !(isIntK(c.t) && isIntK(want) && c.t !== 'char' && want !== 'char')) {
@@ -536,28 +591,33 @@
       return c.v;
     }
     const isIntK = (k) => k === 'int' || k === 'long' || k === 'char';
+    void HEAP_BASE;
     function store(a, t, v) {
       if (a === 0) fail('NULL ポインタ (0 番地) に書き込もうとしました');
       if (t.k === 'struct') { memcpy(a, v, t); return; }
-      const c = mem.get(a);
+      let c = mem.get(a);
+      const want = cellKind(t);
+      if ((!c || c.t !== want) && a >= HEAP_BASE && heapMiss(a, scalarSize(t), true)) c = { t: want, heap: 1 };
       if (!c) fail(fmtA(a) + ' 番地は確保されていない領域です。存在しない場所に書き込もうとしています (不正なメモリアクセス)');
       if (c.ro) fail('文字列定数は書き換えられません');
-      const want = cellKind(t);
       if (c.t !== want && !(isIntK(c.t) && isIntK(want) && c.t !== 'char' && want !== 'char')) {
         fail('型の不一致: ' + fmtA(a) + ' 番地' + (nameAt(a) ? ' (' + nameAt(a) + ')' : '') + ' は ' + kindLabel[c.t] + ' 型の領域ですが, ' + typeStr(t) + ' として書き込もうとしました');
       }
       const nc = { t: c.t, v: conv(v, t) };
-      if (t.k === 'ptr') nc.to = t.to.k;
+      if (t.k === 'ptr') { nc.to = t.to.k; nc.tt = t.to; hint(nc.v, t); }
       setCell(a, nc);
     }
     function memcpy(dst, src, t) {
       if (t.k === 'arr') { for (let i = 0; i < t.n; i++) memcpy(dst + i * t.of.size, src + i * t.of.size, t.of); return; }
       if (t.k === 'struct') { for (const f of t.fields) memcpy(dst + f.off, src + f.off, f.type); return; }
-      const c = mem.get(src);
+      let c = mem.get(src);
+      if (!c && src >= HEAP_BASE && heapMiss(src, scalarSize(t), false)) c = { t: cellKind(t), v: undefined };
       if (!c) fail('コピー元の領域が存在しません');
-      const d = mem.get(dst);
+      let d = mem.get(dst);
+      if (!d && dst >= HEAP_BASE && heapMiss(dst, scalarSize(t), true)) d = { t: cellKind(t) };
       if (!d) fail('コピー先の領域が存在しません');
-      setCell(dst, { t: d.t, v: c.v });
+      const nc = { t: d.t, v: c.v }; if (c.to) { nc.to = c.to; nc.tt = c.tt; }
+      setCell(dst, nc);
     }
     function conv(v, t) {
       if (v === undefined) return v;
@@ -584,6 +644,7 @@
       const bytes = [];
       for (let i = 0; i < 100000; i++) {
         const c = mem.get(a + i);
+        if (!c && a + i >= HEAP_BASE && heapMiss(a + i, 1, false)) fail('未初期化の文字を読みました: ' + (nameAt(a + i) || (a + i) + ' 番地') + ' (malloc で借りた領域に文字列が入っていない / \\0 を書いていない)');
         if (!c) fail('文字列の終わり (\\0) が見つからないまま確保領域の外に出ました');
         if (c.v === undefined) fail('未初期化の文字を読みました (文字列が \\0 で終わっていない可能性)');
         if (c.v === 0) break;
@@ -710,6 +771,7 @@
           if (a.t.k !== 'ptr') fail('[ ] は配列かポインタにしか付けられません', e.loc);
           if (!isInt(i.t)) fail('添字は整数でなければなりません', e.loc);
           const addr = a.v + i.v * a.t.to.size;
+          if (!mem.has(addr) && addr >= HEAP_BASE && heapMiss(addr, scalarSize(a.t.to.k === 'arr' || a.t.to.k === 'struct' ? T.char : a.t.to), false)) return { addr, t: a.t.to };
           if (!mem.has(addr) && a.t.to.k !== 'struct' && a.t.to.k !== 'arr') fail('添字 ' + i.v + ' は範囲外です (' + fmtA(addr) + ' 番地は確保されていません)', e.loc);
           return { addr, t: a.t.to };
         }
@@ -1002,6 +1064,34 @@
       strcmp: (a) => { const x = readStr(a[0].v), y = readStr(a[1].v); return { v: x < y ? -1 : x > y ? 1 : 0, t: T.int }; },
       assert: (a, l) => { if (!truthy(a[0])) fail('assert に失敗しました (条件が偽)', l); return { v: 0, t: T.void }; },
       exit: (a) => { throw { exitCode: a[0] ? a[0].v : 0 }; },
+      malloc: (a, l) => { if (a.length !== 1) fail('malloc の引数は「確保するバイト数」1 つです (例: malloc(sizeof(int)*n))', l); return { v: hAlloc(a[0].v, false, l), t: ptr(T.void) }; },
+      calloc: (a, l) => { if (a.length !== 2) fail('calloc の引数は (要素数, 1 要素のバイト数) の 2 つです', l); return { v: hAlloc(a[0].v * a[1].v, true, l), t: ptr(T.void) }; },
+      realloc: (a, l) => {
+        if (a.length !== 2) fail('realloc の引数は (元の番地, 新しいバイト数) の 2 つです', l);
+        const old = a[0].v, n = Math.trunc(a[1].v);
+        if (old === 0) return { v: hAlloc(n, false, l), t: ptr(T.void) };
+        const ob = blockAt(old);
+        if (!ob || ob.a !== old || !ob.live) hFree(old, l, 'realloc');
+        const na = hAlloc(n, false, l); if (!na) return { v: 0, t: ptr(T.void) };
+        const nb = blockAt(na); nb.tt = ob.tt; nb.from = ob.id;
+        for (let x = 0; x < Math.min(ob.n, n); x++) { const c = mem.get(old + x); if (c) setCell(na + x, Object.assign({}, c)); }
+        hFree(old, l, 'realloc');
+        return { v: na, t: ptr(T.void) };
+      },
+      free: (a, l) => { if (a.length !== 1) fail('free の引数は 1 つです', l); if (a[0].t.k !== 'ptr' && a[0].v !== 0) fail('free にはポインタ (malloc が返した番地) を渡します', l); hFree(a[0].v, l, 'free'); return { v: 0, t: T.void }; },
+      fgets: (a, l) => {
+        const st = a[2]; if (!st || st.stream !== 0) fail('このサイトの fgets は標準入力 (stdin) からの読み込みに対応しています: fgets(s, n, stdin)', l);
+        if (a[0].t.k !== 'ptr' || a[0].t.to.k !== 'char') fail('fgets の第1引数には char 配列を渡します', l);
+        const n = a[1].v; if (n <= 1) fail('fgets の第2引数 (最大長) は 2 以上にしてください', l);
+        if (inPos >= stdin.length) { echoEof(); return { v: 0, t: ptr(T.char) }; }
+        let j = inPos; const lim = n - 1; let s = '';
+        while (j < stdin.length && utf8(s).length < lim) { const ch = stdin[j++]; s += ch; if (ch === '\n') break; }
+        inPos = j; echoTo(inPos); writeStr(a[0].v, s);
+        return { v: a[0].v, t: ptr(T.char) };
+      },
+      strcat: (a) => { writeStr(a[0].v, readStr(a[0].v) + readStr(a[1].v)); return a[0]; },
+      strncmp: (a) => { const x = readStr(a[0].v).slice(0, a[2].v), y = readStr(a[1].v).slice(0, a[2].v); return { v: x < y ? -1 : x > y ? 1 : 0, t: T.int }; },
+      memset: (a) => { for (let i = 0; i < a[2].v; i++) store(a[0].v + i, T.char, a[1].v); return a[0]; },
       fopen: (a, l) => {
         const name = readStr(a[0].v), mode = readStr(a[1].v);
         if (/r/.test(mode) && !vfs[name]) return { v: 0, t: ptr(T.int) };
@@ -1090,7 +1180,7 @@
         if (fn.ret.k === 'void' && r.v) fail('void 関数 ' + fn.name + ' は値を返せません');
         if (r.v) {
           if (fn.ret.k === 'struct') { ret = { v: r.v.v, t: fn.ret, tmpStruct: true }; }
-          else { if (fn.ret.k === 'ptr' && r.v.t.k === 'ptr' && frames[frames.length - 1] === f && r.v.v >= f.base && r.v.v < f.top && fn.name !== 'main') r.v.dangling = true; ret = { v: conv(r.v.v, fn.ret), t: fn.ret }; }
+          else { if (fn.ret.k === 'ptr' && r.v.t.k === 'ptr' && frames[frames.length - 1] === f && r.v.v >= f.base && r.v.v < f.top && fn.name !== 'main') r.v.dangling = true; ret = { v: conv(r.v.v, fn.ret), t: fn.ret }; hint(ret.v, fn.ret); }
         }
       }
       if (fn.name !== 'main') {
@@ -1106,7 +1196,7 @@
       res.steps.push({
         loc: l,
         frames: frames.map((f) => ({ fn: f.fn, base: f.base, vars: f.vars.slice(), callLoc: f.callLoc })),
-        globals: gvars.slice(),
+        globals: gvars.slice(), heap: heapLive,
         log, out: out.length, err: errOut.length, term: termLen,
       });
       log = [];
@@ -1195,6 +1285,7 @@
     if (res.steps.length && log.length) { res.steps[res.steps.length - 1].log = res.steps[res.steps.length - 1].log.concat(log); log = []; }
     fhs.forEach((f) => { if (f.w) vfs[f.name] = Uint8Array.from(f.buf); });
     res.out = out; res.err = errOut; res.term = term; res.vfs = vfs;
+    res.heap = { blocks: hid, sizes: heap.map((b) => b.n), leaks: res.error ? [] : heapLive.map((b) => ({ id: b.id, a: b.a, n: b.n, loc: b.loc })) };
     res.nameAt = null;
     return res;
   }
@@ -1217,7 +1308,7 @@
       return { ok: false, error: { msg: e.isC ? e.message : '構文の解析に失敗しました: ' + e.message, loc: e.loc } };
     }
   }
-  const BUILTIN_NAMES = ['printf', 'fprintf', 'scanf', 'puts', 'putchar', 'getchar', 'sqrt', 'fabs', 'abs', 'pow', 'floor', 'ceil', 'log', 'exp', 'cos', 'sin', 'fmod', 'round', 'rand', 'srand', 'time', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'assert', 'exit', 'fopen', 'fclose', 'fread', 'fwrite', 'malloc', 'calloc', 'free', 'sizeof'];
+  const BUILTIN_NAMES = ['printf', 'fprintf', 'scanf', 'puts', 'putchar', 'getchar', 'sqrt', 'fabs', 'abs', 'pow', 'floor', 'ceil', 'log', 'exp', 'cos', 'sin', 'fmod', 'round', 'rand', 'srand', 'time', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'assert', 'exit', 'fopen', 'fclose', 'fread', 'fwrite', 'malloc', 'calloc', 'realloc', 'free', 'fgets', 'strcat', 'strncmp', 'memset', 'sizeof'];
 
   global.CLab = { run, compile, BUILTIN_NAMES, typeStr, tokenize, CError, kindLabel };
 })(window);

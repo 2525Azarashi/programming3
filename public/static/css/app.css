@@ -1948,3 +1948,11 @@ body::before, body::after { transform: translateZ(0); will-change: transform; }
   .t1-set span { font-size: 11px; }
   .t1-set-pts { position: static; margin-top: 4px; }
 }
+
+/* ===================== ヒープ領域 (B5) ===================== */
+.mem-frame.heap { background: #f7f2ff; border-color: var(--ink); border-style: solid; }
+.mem-frame.heap .mem-fh b { background: var(--vio); color: #fff; }
+.mem-frame.heap .mem-group { border-left-color: rgba(127,92,240,.45); }
+.mem-frame.heap .mem-group > .gl b { color: var(--vio); }
+.c-heap { color: var(--vio); }
+.leakline { margin: 8px 0; padding: 8px 12px; border: 2px solid var(--ink); border-radius: 12px; background: #f1eaff; color: var(--ink); font-size: 12.5px; white-space: pre-wrap; box-shadow: var(--sh-s); }

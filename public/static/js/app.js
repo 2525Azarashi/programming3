@@ -92,7 +92,7 @@
   }
 
   /* ================= ホーム ================= */
-  const UNIT_DECO = { t1: ['var(--ptr)', 'T1'], b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--lemon)', '[][]'], b5: ['var(--sky)', '?'] };
+  const UNIT_DECO = { t1: ['var(--ptr)', 'T1'], b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--lemon)', '[][]'], b5: ['var(--sky)', 'malloc'], b6: ['var(--peach)', '?'] };
   function bounceWord(word, cls) {
     return h('span' + (cls || ''), word.split('').map((ch, i) => h('span.w', { style: { '--d': i } }, ch === ' ' ? '\u00a0' : ch)));
   }
@@ -759,6 +759,8 @@
       }
       const ws = outs[0] && outs[0].warnings;
       if (ws && ws.length) resultHost.prepend(h('div.warnline', ws.map((w) => w.loc.file + ':' + w.loc.line + ': warning: ' + w.msg).join('\n') + '\n→ 呼び出しより前にプロトタイプ宣言 (またはヘッダの #include) が必要です'));
+      const lk = outs.find((r) => !r.error && r.heap && r.heap.leaks.length);
+      if (lk) resultHost.prepend(h('div.leakline', '⚠ free 忘れ (メモリリーク): プログラム終了時に ' + lk.heap.leaks.length + ' ブロック (' + lk.heap.leaks.reduce((x, b) => x + b.n, 0) + ' バイト) が返却されていません\n' + lk.heap.leaks.slice(0, 4).map((b) => '  heap#' + b.id + ' — ' + b.n + ' バイト' + (b.loc ? ' (' + b.loc.file + ':' + b.loc.line + ' で確保)' : '')).join('\n')));
       let verdict = null;
       if (allOk && t.check) verdict = t.check(outs, src, CLab);
       const ok = allOk && (!verdict || verdict.ok);
