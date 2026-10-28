@@ -315,6 +315,7 @@
     let curFile = units[0];
 
     const title = h('span.t', o.title || 'ステップ実行');
+    const trCopy = h('button.cb-copy.cb-inline', { type: 'button', title: '表示中のファイルをコピー', onclick: () => g.U.copyText(files[curFile] || '').then((ok) => ok && g.U.flashCopied(trCopy)) }, h('span', { html: g.U.ICONS.copy }), h('span', 'コピー'));
     const fileTabs = h('div.tr-files');
     const codeHost = h('div', { style: { flex: '1', display: 'flex', minHeight: '0' } });
     const cap = h('div.tr-caption', { 'aria-live': 'polite' });
@@ -335,7 +336,7 @@
     const stdinBar = o.stdinEditable === false || (!o.stdin && !o.showStdin) ? null : h('div.tr-stdin', h('span', 'stdin'), stdinIn, h('span', { style: { fontSize: '11px' } }, '⏎ = 改行'));
 
     const el = h('div.tracer', { tabindex: '0' },
-      h('div.tr-head', title, h('span.sp'), o.headExtra || null),
+      h('div.tr-head', title, h('span.sp'), o.headExtra || null, trCopy),
       h('div.tr-body',
         h('div.tr-code', fileTabs, codeHost),
         h('div.tr-right', cap, memWrap)),

@@ -1956,3 +1956,49 @@ body::before, body::after { transform: translateZ(0); will-change: transform; }
 .mem-frame.heap .mem-group > .gl b { color: var(--vio); }
 .c-heap { color: var(--vio); }
 .leakline { margin: 8px 0; padding: 8px 12px; border: 2px solid var(--ink); border-radius: 12px; background: #f1eaff; color: var(--ink); font-size: 12.5px; white-space: pre-wrap; box-shadow: var(--sh-s); }
+
+/* ===================== エディタの使いやすさ (ツールバー / コピー / クリア / 全画面) ===================== */
+.ed-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; background: #fffdf9; }
+.ed-bar { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-bottom: 1.5px dashed rgba(59,39,56,.18); background: #fff7ef; flex-wrap: wrap; }
+.ed-bar .sp { flex: 1; }
+.etb-g { display: flex; gap: 4px; align-items: center; }
+.etb-sep { width: 1.5px; height: 20px; background: rgba(59,39,56,.15); margin: 0 2px; }
+.etb { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px; border: 1.5px solid var(--ink); border-radius: 10px; background: #fff; color: var(--ink); font: 700 12px var(--f-jp); cursor: pointer; box-shadow: 1.5px 1.5px 0 var(--ink); transition: transform .15s var(--spring), background .15s, box-shadow .15s; white-space: nowrap; }
+.etb svg { width: 15px; height: 15px; flex: none; }
+.etb:hover:not(:disabled) { transform: translateY(-1px); background: #fff3c4; }
+.etb:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: 0 0 0 var(--ink); }
+.etb:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
+.etb:focus-visible, .cb-copy:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+.etb.danger:hover:not(:disabled) { background: #ffd6d2; color: #8c1f24; }
+.etb.copied, .cb-copy.copied { background: #c9f2d9 !important; color: #0f5c34 !important; }
+.etb-mini { height: 26px; padding: 0 8px; font-size: 11px; letter-spacing: 0; text-transform: none; }
+.etb-mini svg { width: 13px; height: 13px; }
+.etb-fs { font: 700 11px var(--f-mono); color: var(--mute); min-width: 34px; text-align: center; }
+.etb-ro { font-size: 11px; font-weight: 700; color: var(--ink-2); background: #efe7ff; border: 1.5px solid var(--ink); border-radius: 99px; padding: 2px 10px; }
+.ed .CodeMirror, .ed-fallback { font-size: var(--ed-fs, 14px); }
+.ed-status { display: flex; gap: 14px; align-items: center; padding: 4px 12px; font: 11px var(--f-mono); color: var(--mute); border-top: 1.5px dashed rgba(59,39,56,.15); background: #fffaf4; }
+.ed-status .sp { flex: 1; }
+.st-save::before { content: '●'; color: var(--ok); margin-right: 5px; }
+.st-save.dirty::before { color: var(--addr); }
+/* 全画面 */
+.ed-wrap.ed-full { position: fixed; inset: 12px; z-index: 300; border: var(--bw) solid var(--ink); border-radius: 22px; box-shadow: 8px 8px 0 var(--ink); overflow: hidden; }
+.ed-wrap.ed-full .ed { flex: 1; min-height: 0; }
+.ed-wrap.ed-full .ed .CodeMirror { height: 100%; }
+body.ed-full-on { overflow: hidden; }
+body.ed-full-on::after { content: ''; position: fixed; inset: 0; z-index: 299; background: rgba(59,39,56,.35); }
+/* 読み取り専用コードのコピーボタン */
+.cb-wrap { position: relative; }
+.cb-copy { position: absolute; top: 8px; right: 8px; z-index: 2; display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border: 1.5px solid var(--ink); border-radius: 10px; background: #fff; color: var(--ink); font: 700 11.5px var(--f-jp); cursor: pointer; box-shadow: 1.5px 1.5px 0 var(--ink); opacity: .55; transition: opacity .15s, transform .15s var(--spring), background .15s; }
+.cb-copy svg { width: 14px; height: 14px; }
+.cb-wrap:hover .cb-copy, .cb-copy:focus-visible, .cb-copy.copied { opacity: 1; }
+.cb-copy:hover { background: #fff3c4; transform: translateY(-1px); }
+.cb-copy.cb-inline { position: static; opacity: 1; height: 26px; margin-left: 8px; }
+.cb-copy.cb-inline span:first-child { display: inline-flex; }
+@media (hover: none) { .cb-copy { opacity: 1; } }
+@media (max-width: 760px) {
+  .ed-bar { gap: 4px; padding: 6px 8px; }
+  .etb { height: 32px; padding: 0 8px; }
+  .etb-fsg, .etb-sep { display: none; }
+  .etb-ro { order: 9; width: 100%; text-align: center; }
+  .ed-wrap.ed-full { inset: 0; border-radius: 0; box-shadow: none; }
+}

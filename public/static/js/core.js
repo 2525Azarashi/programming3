@@ -109,6 +109,14 @@
     eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
     dl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
     copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg>',
+    undo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
+    redo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+    cmt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 4L6 20M18 4l-4 16"/></svg>',
+    fmt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M8 10h12M8 14h12M4 18h16"/></svg>',
+    full: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+    unfull: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
     menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
   };
   const icon = (n) => { const s = h('span', { html: ICONS[n] }); return s.firstChild; };
@@ -187,5 +195,26 @@
   const nearQ = new Map();
   const nio = 'IntersectionObserver' in g ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting && nearQ.has(e.target)) { const f = nearQ.get(e.target); nearQ.delete(e.target); nio.unobserve(e.target); f(); } }), { rootMargin: '600px 0px' }) : null;
   function whenNear(el, fn) { if (!nio) { setTimeout(fn, 0); return; } nearQ.set(el, fn); setTimeout(() => nio.observe(el), 0); }
-  g.U = { whenNear, h, esc, hlCode, codeBlock, store, toast, icon, ICONS, face, moodOf, confetti, confettiAt };
+  /* クリップボードにコピー (https 以外 / 古いブラウザでは textarea + execCommand) */
+  function copyText(txt) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(txt).then(() => true, () => fallback());
+    return Promise.resolve(fallback());
+    function fallback() {
+      const ta = document.createElement('textarea'); ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+      document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; } ta.remove(); return ok;
+    }
+  }
+  /* ボタンを一瞬「✓ コピーしました」に変える */
+  function flashCopied(btn, label) {
+    if (!btn) return; const old = btn.innerHTML; btn.classList.add('copied');
+    btn.innerHTML = ICONS.check + '<span>' + (label || 'コピーしました') + '</span>';
+    clearTimeout(btn._ct); btn._ct = setTimeout(() => { btn.innerHTML = old; btn.classList.remove('copied'); }, 1400);
+  }
+  /* 読み取り専用コードにコピーボタンを重ねる */
+  function copyable(el, getText) {
+    const btn = h('button.cb-copy', { type: 'button', title: 'コードをコピー', 'aria-label': 'コードをコピー', onclick: (e) => { e.stopPropagation(); copyText(getText()).then((ok) => ok && flashCopied(btn)); } });
+    btn.innerHTML = ICONS.copy + '<span>コピー</span>';
+    return h('div.cb-wrap', el, btn);
+  }
+  g.U = { whenNear, copyText, flashCopied, copyable, h, esc, hlCode, codeBlock, store, toast, icon, ICONS, face, moodOf, confetti, confettiAt };
 })(window);

@@ -273,7 +273,7 @@
       case 'talk': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, talk(b.lines));
       case 'point': return h('div.blk', h('div.point', h('div.pn', 'POINT ' + b.n), h('div', h('div.pt', { html: b.title }), b.sub ? h('div.ps', { html: b.sub }) : null)));
       case 'callout': return h('div.blk', h('div.callout.' + (b.kind || 'info'), { html: b.html }));
-      case 'code': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, codeBlock(b.code, { hl: b.hl }));
+      case 'code': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, U.copyable(codeBlock(b.code, { hl: b.hl }), () => b.code));
       case 'compare': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null,
         h('div.compare', b.items.map((it) => h('div.cmp-card', h('h5', { html: it.title }), it.code ? codeBlock(it.code, { hl: it.hl }) : null, it.html ? h('div.prose', { style: { marginTop: '10px', fontSize: '14px' }, html: it.html }) : null))));
       case 'tracer': { const tr = MemViz.Tracer({ files: b.files || { 'main.c': b.code }, units: b.units || [b.main || 'main.c'], stdin: b.stdin, showStdin: b.showStdin, title: '' }); const t = tr.querySelector('.tr-head .t'); t.innerHTML = b.title || U.esc(b.name || 'ステップ実行'); return h('div.blk', tr); }
@@ -522,7 +522,7 @@
     const wrap = h('div.compare');
     b.items.forEach((it) => {
       const out = h('div');
-      const card = h('div.cmp-card', h('h5', { html: '<span class="chip ptr">BUG</span> ' + it.title }), codeBlock(it.code, { hl: it.hl }), out,
+      const card = h('div.cmp-card', h('h5', { html: '<span class="chip ptr">BUG</span> ' + it.title }), U.copyable(codeBlock(it.code, { hl: it.hl }), () => it.code), out,
         h('div', { style: { marginTop: '10px', display: 'flex', gap: '8px' } },
           h('button.btn.sm', { onclick: () => {
             const r = CLab.run({ 'main.c': it.code }, ['main.c'], { stdin: it.stdin || '', maxSnaps: 5 });
@@ -654,9 +654,80 @@
     const allFiles = t.files.concat(Object.keys(given));
     allFiles.forEach((f) => fileTabs.appendChild(h('button', { 'data-f': f, onclick: () => switchFile(f) }, f, given[f] !== undefined ? h('span.c-mute', { style: { fontSize: '10px', marginLeft: '6px' } }, '配布') : null)));
     const edHost = h('div.ed', U.skel('code', 14));
+    const tb = (ic, label, title, fn, cls) => { const b = h('button.etb' + (cls || ''), { type: 'button', title, 'aria-label': title, onclick: (e) => { e.preventDefault(); fn(b); } }, ic ? icon(ic) : null); if (label) b.appendChild(h('span', label)); return b; };
+    const bCopy = tb('copy', 'コピー', 'このファイルをコピー (Ctrl+Shift+C)', (b) => copyCur(b));
+    const bCopyAll = t.files.length > 1 ? tb('copy', '全部', '自分のファイルを全部コピー (ファイル名付き)', (b) => copyAll(b)) : null;
+    const bClear = tb('trash', 'クリア', 'このファイルを空にする (元に戻せます)', () => clearFile(), '.danger');
+    const bUndo = tb('undo', '', '元に戻す (Ctrl+Z)', () => cm && (cm.undo(), cm.focus()));
+    const bRedo = tb('redo', '', 'やり直す (Ctrl+Y)', () => cm && (cm.redo(), cm.focus()));
+    const bCmt = tb('cmt', '', 'コメント切替 (Ctrl+/)', () => toggleCmt());
+    const bFmt = tb('fmt', '整形', 'インデントを整える (Shift+Alt+F)', () => formatCode());
+    let fsz = store.get('edfont', 14);
+    const fszLab = h('span.etb-fs', fsz + 'px');
+    const setFs = (d) => { fsz = Math.max(11, Math.min(22, fsz + d)); store.set('edfont', fsz); fszLab.textContent = fsz + 'px'; edHost.style.setProperty('--ed-fs', fsz + 'px'); if (cm) cm.refresh(); };
+    const bFsDn = tb('', 'A−', '文字を小さく', () => setFs(-1)), bFsUp = tb('', 'A＋', '文字を大きく', () => setFs(1));
+    const bFull = tb('full', '', '全画面 (Esc で戻る)', () => toggleFull());
+    const roBadge = h('span.etb-ro', '配布ファイル (読み取り専用)');
+    const edBar = h('div.ed-bar', h('div.etb-g', bCopy, bCopyAll, bClear), h('i.etb-sep'), h('div.etb-g', bUndo, bRedo, bCmt, bFmt), roBadge, h('span.sp'), h('div.etb-g.etb-fsg', bFsDn, fszLab, bFsUp), bFull);
+    const stPos = h('span', '1 行 1 列'), stLen = h('span', ''), stSave = h('span.st-save', '自動保存済み');
+    const edStatus = h('div.ed-status', stPos, stLen, h('span.sp'), stSave);
+    edHost.style.setProperty('--ed-fs', fsz + 'px');
+    function isRO() { return given[curFile] !== undefined; }
+    function syncBar() {
+      const ro = isRO(); roBadge.style.display = ro ? '' : 'none';
+      [bClear, bUndo, bRedo, bCmt, bFmt].forEach((b) => (b.disabled = ro));
+      updStatus();
+    }
+    function updStatus() {
+      const v = getCode() || '';
+      const lines = v.split('\n').length;
+      stLen.textContent = lines + ' 行 · ' + v.length + ' 文字';
+      if (cm) { const c = cm.getCursor(); stPos.textContent = (c.line + 1) + ' 行 ' + (c.ch + 1) + ' 列'; }
+      if (cm) { bUndo.disabled = isRO() || !cm.historySize().undo; bRedo.disabled = isRO() || !cm.historySize().redo; }
+    }
+    function copyCur(b) { U.copyText(getCode()).then((ok) => { if (ok) { U.flashCopied(b); } else toast('コピーできませんでした (ブラウザの設定を確認)', { type: 'info' }); }); }
+    function copyAll(b) { saveCur(); const txt = t.files.map((f) => '/* ===== ' + f + ' ===== */\n' + files[f]).join('\n\n'); U.copyText(txt).then((ok) => ok && U.flashCopied(b, t.files.length + ' ファイル')); }
+    function clearFile() {
+      if (isRO()) return;
+      const f = curFile, bak = getCode();
+      if (!bak.trim()) { toast(f + ' はすでに空です', { type: 'info' }); return; }
+      if (cm) { cm.setValue(''); cm.focus(); } else if (ta) ta.value = '';
+      saveCur(); updStatus();
+      toast(f + ' をクリアしました', { type: 'info', action: '元に戻す', onAction: () => { if (curFile !== f) switchFile(f); if (cm) cm.setValue(bak); else if (ta) ta.value = bak; saveCur(); updStatus(); } });
+    }
+    function toggleCmt() {
+      if (!cm || isRO()) return;
+      const from = cm.getCursor('from').line, to0 = cm.getCursor('to'), to = to0.ch === 0 && to0.line > from ? to0.line - 1 : to0.line;
+      const ls = []; for (let i = from; i <= to; i++) ls.push(cm.getLine(i));
+      const nonEmpty = ls.filter((l) => l.trim());
+      const allC = nonEmpty.length && nonEmpty.every((l) => /^\s*\/\//.test(l));
+      const ind = Math.min(...nonEmpty.map((l) => l.match(/^\s*/)[0].length).concat([0].filter(() => !nonEmpty.length)));
+      cm.operation(() => ls.forEach((l, k) => {
+        const i = from + k; if (!l.trim()) return;
+        if (allC) { const m = /^(\s*)\/\/ ?/.exec(l); cm.replaceRange(m[1], { line: i, ch: 0 }, { line: i, ch: m[0].length }); }
+        else cm.replaceRange('// ', { line: i, ch: ind });
+      }));
+      cm.focus();
+    }
+    function formatCode() {
+      if (!cm || isRO()) return;
+      const c = cm.getCursor();
+      cm.operation(() => { for (let i = 0; i < cm.lineCount(); i++) cm.indentLine(i, 'smart'); });
+      cm.setCursor(c); cm.focus(); toast('インデントを整えました', { type: 'info' });
+    }
+    let fullOn = false, fullPh = null;
+    function toggleFull(force) {
+      fullOn = force === undefined ? !fullOn : force;
+      /* 親の content-visibility / transform が fixed を閉じ込めるので, 全画面中は body 直下へ移す */
+      if (fullOn && !fullPh) { fullPh = document.createComment('ed'); edWrap.parentNode.insertBefore(fullPh, edWrap); document.body.appendChild(edWrap); }
+      else if (!fullOn && fullPh) { fullPh.parentNode.insertBefore(edWrap, fullPh); fullPh.remove(); fullPh = null; }
+      edWrap.classList.toggle('ed-full', fullOn); document.body.classList.toggle('ed-full-on', fullOn);
+      bFull.innerHTML = ''; bFull.appendChild(icon(fullOn ? 'unfull' : 'full'));
+      setTimeout(() => { if (cm) { cm.refresh(); cm.focus(); } }, 30);
+    }
 
     function getCode() { return cm ? cm.getValue() : ta ? ta.value : files[curFile]; }
-    function saveCur() { if (curFile && t.files.includes(curFile)) { files[curFile] = getCode(); store.set(codeKey(curFile), files[curFile]); } }
+    function saveCur() { if (curFile && t.files.includes(curFile)) { files[curFile] = getCode(); store.set(codeKey(curFile), files[curFile]); if (typeof stSave !== 'undefined') { stSave.textContent = '自動保存済み'; stSave.classList.remove('dirty'); } } }
     function switchFile(f) {
       saveCur();
       curFile = f;
@@ -665,12 +736,16 @@
       const val = ro ? given[f] : files[f];
       if (cm) { cm.setOption('mode', /\.(c|h)$/.test(f) ? 'text/x-csrc' : 'text/plain'); cm.setValue(val); cm.setOption('readOnly', ro); edHost.classList.toggle('cm-readonly', ro); cm.clearHistory(); }
       else if (ta) { ta.value = val; ta.readOnly = ro; }
+      syncBar();
     }
     loadCM((ok) => {
       edHost.innerHTML = '';
       if (ok && window.CodeMirror) {
-        cm = CodeMirror(edHost, { value: files[curFile], mode: 'text/x-csrc', lineNumbers: true, matchBrackets: true, autoCloseBrackets: true, styleActiveLine: true, indentUnit: 4, tabSize: 4, indentWithTabs: false, lineWrapping: false, extraKeys: { 'Ctrl-Enter': () => runTests(), 'Cmd-Enter': () => runTests(), Tab: (c) => c.replaceSelection('    ') } });
-        let tm; cm.on('change', () => { clearTimeout(tm); tm = setTimeout(saveCur, 400); });
+        cm = CodeMirror(edHost, { value: files[curFile], mode: 'text/x-csrc', lineNumbers: true, matchBrackets: true, autoCloseBrackets: true, styleActiveLine: true, indentUnit: 4, tabSize: 4, indentWithTabs: false, lineWrapping: false, extraKeys: { 'Ctrl-Enter': () => runTests(), 'Cmd-Enter': () => runTests(), Tab: (c) => (c.somethingSelected() ? c.indentSelection('add') : c.replaceSelection('    ')), 'Shift-Tab': (c) => c.indentSelection('subtract'),
+          'Ctrl-/': () => toggleCmt(), 'Cmd-/': () => toggleCmt(), 'Shift-Alt-F': () => formatCode(), 'Ctrl-S': () => { saveCur(); toast('保存しました (自動保存もされています)', { type: 'info' }); }, 'Cmd-S': () => { saveCur(); toast('保存しました', { type: 'info' }); },
+          'Ctrl-Shift-C': () => copyCur(bCopy), 'Ctrl-Y': (c) => c.redo(), Esc: () => { if (fullOn) toggleFull(false); } } });
+        let tm; cm.on('change', () => { stSave.textContent = '保存中…'; stSave.classList.add('dirty'); updStatus(); clearTimeout(tm); tm = setTimeout(saveCur, 400); });
+        cm.on('cursorActivity', updStatus);
         U.attachCHint(cm, () => allSrc());
         setTimeout(() => cm.refresh(), 50);
       } else {
@@ -682,6 +757,11 @@
     // 右側
     const resultHost = h('div.task-out', { 'aria-live': 'polite' }, h('span.c-mute', '「テスト実行」で期待値と比較します (Ctrl+Enter)'));
     const banner = h('div');
+    const bOutCopy = h('button.etb.etb-mini', { type: 'button', title: '実行結果 (stdout) をコピー', onclick: () => {
+      const so = lastRun && lastRun.outs ? lastRun.outs.map((r) => r.out || '').join(lastRun.outs.length > 1 ? '\n' : '') : '';
+      const txt = so.trim() ? so : resultHost.innerText;
+      U.copyText(txt).then((ok) => ok && U.flashCopied(bOutCopy));
+    } }, icon('copy'), h('span', 'コピー'));
     const stdinTa = h('textarea', { rows: 3, 'aria-label': '標準入力' }); stdinTa.value = (t.tests && t.tests[0] && t.tests[0].stdin) || t.stdin || '';
     const hintList = h('div.hint-list');
     let hintN = 0;
@@ -817,7 +897,7 @@
     }
     function showAnswer2() {
       const box = h('div', { style: { marginTop: '8px' } });
-      Object.keys(t.solution).forEach((f) => box.append(h('div.c-mute', { style: { fontSize: '11px', margin: '6px 0 4px', fontFamily: 'var(--f-mono)' } }, f), codeBlock(t.solution[f])));
+      Object.keys(t.solution).forEach((f) => box.append(h('div.c-mute', { style: { fontSize: '11px', margin: '6px 0 4px', fontFamily: 'var(--f-mono)' } }, f), U.copyable(codeBlock(t.solution[f]), () => t.solution[f])));
       box.appendChild(h('button.btn.sm', { style: { marginTop: '8px' }, onclick: () => { U.ask({ title: 'エディタを模範解答で置き換える?', html: '今のコードは消えます (「元に戻す」で 1 回だけ復元できます)。', ok: '置き換える', danger: true }).then((y) => { if (!y) return; const bak = Object.assign({}, files); Object.keys(t.solution).forEach((f) => { if (t.files.includes(f)) { files[f] = t.solution[f]; store.set(codeKey(f), t.solution[f]); } }); curFile = null; switchFile(t.files[0]); toast('模範解答を読み込みました', { action: '元に戻す', onAction: () => { Object.keys(bak).forEach((f) => { files[f] = bak[f]; store.set(codeKey(f), bak[f]); }); curFile = null; switchFile(t.files[0]); toast('元に戻しました', { type: 'info' }); } }); }); } }, '解答をエディタに読み込む'));
       ansHost.innerHTML = ''; ansHost.appendChild(box);
     }
@@ -840,6 +920,8 @@
       toast(t.files.join(', ') + ' をダウンロード');
     }
 
+    const edWrap = h('div.ed-wrap', fileTabs, edBar, edHost, edStatus);
+    edWrap.addEventListener('keydown', (e) => { if (e.key === 'Escape' && fullOn) toggleFull(false); });
     // レポートメモ
     const obsFacts = h('div.c-mute', { style: { fontSize: '12.5px', marginBottom: '6px' } });
     const mkTa = (k, ph) => { const x = h('textarea', { placeholder: ph }); x.value = notes[k] || ''; x.addEventListener('input', () => { notes[k] = x.value; store.set(notesKey, notes); }); return x; };
@@ -854,7 +936,7 @@
       t.intro ? h('div.task-intro', talk(t.intro, { compact: true })) : null,
       h('div.task-spec', { html: t.spec }),
       h('div.task-body',
-        h('div.task-editor', fileTabs, edHost,
+        h('div.task-editor', edWrap,
           h('div.task-actions',
             h('button.btn.sm.ptr', { onclick: runTests, title: 'Ctrl+Enter' }, icon('run'), 'テスト実行'),
             t.kind === 'text' || t.noTrace ? null : h('button.btn.sm', { onclick: trace }, icon('trace'), 'メモリで追う'),
@@ -863,7 +945,7 @@
             h('button.btn.sm.ghost', { onclick: () => resetFile(), title: '初期化' }, icon('reset')),
             h('button.btn.sm.ghost', { onclick: download, title: '.c をダウンロード' }, icon('dl'), '保存'))),
         h('div.task-side',
-          h('div.sec', h('h6', h('span', '結果'), null), banner, h('div', { style: { height: '8px' } }), resultHost),
+          h('div.sec', h('h6', h('span', '結果'), bOutCopy), banner, h('div', { style: { height: '8px' } }), resultHost),
           t.kind === 'text' || t.noStdin ? null : !t.tests ? h('div.sec', h('h6', '標準入力 (stdin)'), stdinTa) : h('div.sec', h('h6', 'テストデータ'), h('div.c-mute', { style: { fontSize: '12.5px' } }, t.tests.map((x, k) => h('div', { style: { marginBottom: '4px' } }, h('span', 'テスト' + (k + 1) + ': 入力 '), h('code.ic', (x.stdin || '(なし)').trim().replace(/\n/g, ' ⏎ ').slice(0, 60))))), h('div', { style: { marginTop: '8px' } }, h('label.c-mute', { style: { fontSize: '11px' } }, '「メモリで追う」で使う入力'), stdinTa)),
           h('div.sec', h('h6', h('span', 'ヒント'), btnHint), hintList, h('div', { style: { marginTop: '10px' } }, h('button.btn.sm.ghost', { onclick: showAnswer }, icon('eye'), '模範解答')), ansHost))),
       wideHost,
