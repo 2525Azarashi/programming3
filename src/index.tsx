@@ -10,6 +10,7 @@ const UNITS: Record<string, { title: string; desc: string; extra?: string[] }> =
   b3: { title: 'ポインタ', desc: '変数の番地・& と *・ポインタ引数・構造体/配列へのポインタ' },
   b4: { title: '配列と構造体', desc: '2 次元配列と行列・構造体の配列 (pixel_t)・配列を持つ構造体・ビットマップ画像処理', extra: ['code'] },
   b5: { title: '動的割当て', desc: 'malloc と free・sizeof・文字列と構造体の動的割当て・realloc を使った整数スタック' },
+  b6: { title: 'リスト処理', desc: '自己参照構造体とダミー節点・リストの挿入/探索/削除・計算時間の計測・二分探索木' },
 }
 
 const shell = (opts: { page: string; unit?: string; title: string; desc: string; extra?: string[] }) => `<!DOCTYPE html>

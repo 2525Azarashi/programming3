@@ -320,4 +320,36 @@
         { title: '<b>pop(s)</b>', color: 'pink', steps: ['空 (sp == 0) なら 0 を返す', '<code class="ic">sp--;</code>', '<code class="ic">return data[sp];</code>'] },
       ], note: 'pop した値は消さなくて良い。sp より後ろは「無いもの」として扱われる。' } },
   };
+  I.b6 = {
+    intro: { top: { kind: 'stats', tag: 'B6 IN NUMBERS', title: 'この単元の数字', items: [
+      { value: 16, suffix: 'B', label: 'リストの節点 1 個 (int + ポインタ + 隙間)', color: 'pink' },
+      { value: 24, suffix: 'B', label: '二分木の節点 1 個 (left + right + data)', color: 'mint' },
+      { value: 2, label: 'insert_node で書き換える矢印の本数', color: 'lemon' },
+      { value: 15, label: 'n=25000 の二分木で 1 回にたどる深さ (≈log₂n)', color: 'sky' },
+    ] } },
+    insert: { top: { kind: 'pipeline', tag: 'INSERT_NODE', title: 'n の直後に new を入れる — この順番で',
+      steps: [
+        { icon: 'm', label: 'create_node', sub: 'malloc 16 B', color: 'sky' },
+        { icon: '1', label: 'new->next = n->next', sub: '後ろを先に握る', color: 'mint' },
+        { icon: '2', label: 'n->next = new', sub: 'n の矢印を付け替え', color: 'pink' },
+        { icon: 'r', label: 'return new', sub: '挿入した節点', color: 'lav' },
+      ] } },
+    traverse: { top: { kind: 'compare2', tag: 'TRAVERSE', title: '走査の 2 つの型 — どこで止まりたいか',
+      lanes: [
+        { title: '<b>各節点を見る</b> (print / find)', color: 'mint', steps: ['<code class="ic">p = head_p-&gt;next</code>', '<code class="ic">p != NULL</code> の間', '<code class="ic">p-&gt;val</code> を調べる'] },
+        { title: '<b>先読み</b> (削除 / 昇順挿入)', color: 'pink', steps: ['<code class="ic">p = head_p</code> (ダミーから)', '<code class="ic">p-&gt;next != NULL</code> の間', '<code class="ic">p-&gt;next-&gt;val</code> を調べる → p は直前'] },
+      ], note: '先読みなら見つかった時点で直前の節点が手元にある。片方向リストは後ろへ戻れないので, これが削除の鍵。' } },
+    time: { top: { kind: 'bars', tag: 'GCC TIMING', title: 'n = 25000 のとき, 1 個あたりの時間 (µs, gcc -O0 の実測)', max: 90,
+      items: [
+        { label: 'リスト <code class="ic">find</code> (miss)', value: 85.9, unit: 'µs', color: 'pink' },
+        { label: 'リスト <code class="ic">insert_uniq</code>', value: 43.8, unit: 'µs', color: 'lemon' },
+        { label: 'リスト <code class="ic">find</code> (hit)', value: 41.9, unit: 'µs', color: 'sky' },
+        { label: '二分木 <code class="ic">tree_find</code> (hit)', value: 0.4, unit: 'µs', color: 'mint' },
+      ], note: 'リストは n=5000 のとき約 9〜36 µs → n=25000 で約 42〜86 µs (n に比例)。二分木は n によらずほぼ一定 (1 µs 未満)。' } },
+    tree: { top: { kind: 'compare2', tag: 'TREE ORDER', title: 'printf の位置で表示順が変わる (5, 3, 8, 1, 4 を挿入)',
+      lanes: [
+        { title: '<b>原型</b>: 自分 → 左 → 右', color: 'lemon', steps: ['先行順 (preorder)', '<code class="ic">[ 5 3 1 4 8 ]</code>'] },
+        { title: '<b>課題 6-9</b>: 左 → 自分 → 右', color: 'mint', steps: ['中間順 (inorder)', '<code class="ic">[ 1 3 4 5 8 ]</code> = 昇順'] },
+      ], note: '二分探索木は「左 < 自分 < 右」なので, 中間順にたどると必ず昇順になる。' } },
+  };
 })();

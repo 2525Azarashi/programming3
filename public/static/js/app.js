@@ -92,7 +92,7 @@
   }
 
   /* ================= ホーム ================= */
-  const UNIT_DECO = { t1: ['var(--ptr)', 'T1'], b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--lemon)', '[][]'], b5: ['var(--sky)', 'malloc'], b6: ['var(--peach)', '?'] };
+  const UNIT_DECO = { t1: ['var(--ptr)', 'T1'], b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--lemon)', '[][]'], b5: ['var(--sky)', 'malloc'], b6: ['var(--peach)', '->next'], b7: ['var(--mint)', '?'] };
   function bounceWord(word, cls) {
     return h('span' + (cls || ''), word.split('').map((ch, i) => h('span.w', { style: { '--d': i } }, ch === ' ' ? '\u00a0' : ch)));
   }
@@ -928,7 +928,7 @@
     const notesEl = h('div.report-notes',
       h('div.rn-head', h('h6', '📝 レポート用メモ — ' + t.label), h('span.c-mute', { style: { fontSize: '12px' } }, '自動保存 · 下の「レポート作成」でまとめて出力')),
       t.observe ? h('div', { style: { gridColumn: '1 / -1' } }, h('label', t.obsLabel || '考察 (レポートに記す内容)'), obsFacts, mkTa('obs', t.obsPh || '実行結果から分かったことを, 自分の言葉で書こう')) : null,
-      h('div', h('label', '工夫した点'), mkTa('kufu', '例: 〜を関数にまとめ, 〜が読みやすいようにした')),
+      t.noKufu ? null : h('div', h('label', '工夫した点'), mkTa('kufu', '例: 〜を関数にまとめ, 〜が読みやすいようにした')),
       h('div', h('label', '感想'), mkTa('kanso', '例: 〜が分かった / 〜で苦労した')));
 
     const el = h('article.task#task-' + t.id,
@@ -1003,7 +1003,8 @@
         L.push('');
         if (t.tests && t.tests.some((x) => x.expect !== undefined)) L.push(ok ? 'diff は何も表示せず、期待値と一致した。' : '※ 期待値と一致していない (要確認)');
         if (notes.obs) L.push('', (t.obsTitle || '考察') + ':', notes.obs.trim());
-        L.push('', '工夫した点:', (notes.kufu || '(未記入)').trim(), '', '感想:', (notes.kanso || '(未記入)').trim(), SEP);
+        if (!t.noKufu) L.push('', '工夫した点:', (notes.kufu || '(未記入)').trim());
+        L.push('', '感想:', (notes.kanso || '(未記入)').trim(), SEP);
       });
       pre.textContent = L.join('\n');
       status.innerHTML = missing.length ? '⚠ 未完了の課題: <b class="c-addr">' + missing.join(', ') + '</b> — 課題ラボでテストを通すと実行結果が入ります。' : '✓ すべての課題の実行結果が揃っています。';

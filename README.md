@@ -9,6 +9,7 @@
   - **B4 配列と構造体** — 2 次元配列と行列 / 構造体の配列 pixel_t / 配列を持つ構造体 / ビットマップ画像処理（課題 4-1 (1)〜(7), 4-2 (1)〜(6), 4-3, オプション 2 題）
   - **T1 中間試験対策** (`/t1`) — 試験の形式 / 採点基準 (diff -Bw) / 当日の手順チェックリスト / 配布サンプルプログラムの解説・実行 / 重点復習マップ / **重点問題まとめ 7 題（資料が名指しした 例題(3-4) 課題(3-4)(3-5) 例題(3-5) 課題(3-7) 課題(3-10) 課題(4-1) を「何を作る・必要な要素・解くステップ・落とし穴」に分解）+ 本番で 1 問を解く 7 ステップ** / リダイレクト・diff・分割コンパイルのドリル / **70 分タイマー付き模擬試験 3 回分（第1回 基本 / 第2回 標準 / 第3回 応用, 各 4 問 20 点満点）+ 腕試し 2 問（隠しテスト + 題意チェック）。回ごとにタイマー・得点を別々に記録、ラボのタブで回を切替**
   - **B5 動的割当て** (`/b5`) — sizeof / malloc / free / 文字列 (strlen+1) / 構造体 (pref_t) / スタック istack と realloc。課題 5-1〜5-8 (12) + オプション 2。判定は diff に加え「割り当てバイト数がちょうどか」「free 忘れ (リーク) がないか」まで自動チェック
+  - **B6 リスト処理** (`/b6`) — 自己参照構造体 / ダミー節点 / insert_node・list_print・list_find・insert_uniq・delete_dup / 先読み走査 / clock() による計算時間 O(n) / 二分探索木 (中間順表示・tree_find・O(log n))。課題 6-1〜6-5, 6-9 (6) + オプション 6-6〜6-8, 6-10, 6-11 (8)。表示の diff に加えて、隠しテストで関数の**戻り値** (find の NULL など) と free 忘れを判定。計算時間の課題は gcc の実測表を考察欄に表示
 - 回ごとに PDF を受け取り、単元を追加していく構成。
 
 ## 主な機能
@@ -25,6 +26,7 @@
 - **GitHub**: https://github.com/2525Azarashi/programming3 (main ブランチ)
 - `/` — 単元一覧
 - `/t1` — 中間試験 T1 対策（`#mock` 模擬試験, `#procedure` 当日の手順）
+- `/b6` — B6 リスト処理（`#lab` 課題ラボ, `#report` B6.txt 生成）
 - `/b5` — B5 動的割当て（`#lab` 課題ラボ, `#report` B5.txt 生成）
 - `/b1`, `/b2`, `/b3`, `/b4` — 各単元（`#lab` 課題ラボ, `#report` レポート, `#task-2-5` など課題直リンク）
 - `/api/units` — 単元一覧 JSON
@@ -34,8 +36,8 @@
 - `public/static/js/units/index.js` — ホームの単元一覧。
 - `public/static/js/units/<id>-data.js`（gcc で検証した模範解答・配布ファイル・期待値, 自動生成）, `<id>-tasks.js`（課題定義）, `<id>-code.js`（章のサンプルコード）, `<id>.js`（章コンテンツ）。
 - ブロック種別: `prose, point, callout, code, compare, tracer, predict, repl, cheat, mistakes, bits, flow, linkviz, shell, lab, report, html`。
-- 課題定義: `tests[{stdin, expect, tol, inName, expName}]`, `check`, `custom`（テキスト課題）, `link`（リンクするファイル）, `given`（配布ファイル）, `optional`, `summary`, `reportTitle`, `noRun`。
-- 検証: 全単元で「模範解答はすべて合格・スターターはすべて不合格」を自動テスト済み（B1〜B5 62 課題 + T1 14 題, `node /home/user/qa/verify_all.js b1 b2 b3 b4 b5 t1`）。
+- 課題定義: `tests[{stdin, expect, tol, inName, expName}]`, `check`, `custom`（テキスト課題）, `link`（リンクするファイル）, `given`（配布ファイル）, `optional`, `summary`, `reportTitle`, `noRun`, `noKufu`（レポートで「工夫した点」を出さない）, `observe`/`obsTitle`（考察欄）。
+- 検証: 全単元で「模範解答はすべて合格・スターターはすべて不合格」を自動テスト済み（B1〜B6 76 課題 + T1 14 題, `node /home/user/qa/verify_all.js b1 b2 b3 b4 b5 b6 t1`）。
 
 ## データ
 - サーバ側ストレージなし（静的 + localStorage）。
@@ -115,3 +117,9 @@
 - 配布ファイルのタブでは「読み取り専用」バッジを表示し、クリア等を無効化 (コピーは可)。
 - ステータスバー: カーソル位置・行数/文字数・自動保存の状態。Tab / Shift+Tab で選択範囲のインデント、Ctrl+S で即保存。
 - 結果欄の「コピー」で実行結果 (stdout) を、解説・よくある間違い・模範解答・ステップ実行のコードもワンクリックでコピー可能。
+
+## B6 で追加した仕組み
+- インタプリタ: 自己参照構造体 (`struct list_node_s *next;`)・`typedef struct 名 {...} 型;`・`clock_t` / `time_t` / `clock()` / `CLOCKS_PER_SEC` に対応。
+- 隠しテスト (`b6-tasks.js` の `hidden`): 配布 test 用 main とは別の検査用 main をリンクして、list_find / insert_uniq / delete_dup / sorted_find / tree_find の戻り値を確認。
+- 計算時間の課題 (6-4, Opt-6t, Opt-8t, Opt-11): ブラウザでは n = 200 で動作と found 件数を確認し、考察欄に gcc の実測表 (n = 5000〜25000, 1 個あたり µs) を表示。
+- gcc 検証済み解答・生成: `/home/user/b3_work/b6/`, `gen/gen_b6.py` (データ), `gen/rep_b6.py` (レポート B6.txt + 提出 zip)。

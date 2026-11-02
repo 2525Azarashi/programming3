@@ -108,7 +108,7 @@
   /* ---------- 前処理 (#include "..." / #define) ---------- */
   const BUILTIN_DEFINES = {
     EOF: [{ ty: 'p', v: '-' }, { ty: 'num', v: 1 }], NULL: [{ ty: 'num', v: 0 }],
-    RAND_MAX: [{ ty: 'num', v: 2147483647 }], DBL_EPSILON: [{ ty: 'num', v: 2.220446049250313e-16, isF: true }],
+    RAND_MAX: [{ ty: 'num', v: 2147483647 }], CLOCKS_PER_SEC: [{ ty: 'num', v: 1000000 }], DBL_EPSILON: [{ ty: 'num', v: 2.220446049250313e-16, isF: true }],
     M_PI: [{ ty: 'num', v: Math.PI, isF: true }], true: [{ ty: 'num', v: 1 }], false: [{ ty: 'num', v: 0 }],
   };
   function preprocess(mainName, files) {
@@ -151,11 +151,11 @@
   }
 
   /* ---------- 構文解析 ---------- */
-  const BASE_KW = new Set(['int', 'double', 'float', 'char', 'void', 'long', 'short', 'unsigned', 'signed', 'const', 'static', 'struct', 'volatile', 'size_t']);
+  const BASE_KW = new Set(['int', 'double', 'float', 'char', 'void', 'long', 'short', 'unsigned', 'signed', 'const', 'static', 'struct', 'volatile', 'size_t', 'clock_t', 'time_t']);
 
   function parse(toks) {
     let pos = 0;
-    const typedefs = { size_t: T.long, FILE: T.int };
+    const typedefs = { size_t: T.long, FILE: T.int, clock_t: T.long, time_t: T.long };
     const funcs = {}, globals = [];
     const structs = {};
     const peek = (o = 0) => toks[pos + o];
@@ -202,6 +202,9 @@
           if (peek().ty === 'id') sname = next().v;
           if (isP('{')) {
             next();
+            /* 自己参照構造体 (struct node_s *next;) のため, 本体を読む前に仮登録する */
+            const ph = sname ? (structs[sname] && structs[sname].incomplete ? structs[sname] : { k: 'struct', name: 'struct ' + sname, fields: [], size: 0, incomplete: true }) : null;
+            if (sname) structs[sname] = ph;
             const fields = [];
             while (!isP('}')) {
               const bt = baseType().type;
@@ -209,10 +212,11 @@
               eat(';');
             }
             next();
-            base = layoutStruct(sname ? 'struct ' + sname : '(無名構造体)', fields);
-            if (sname) structs[sname] = base;
+            const lay = layoutStruct(sname ? 'struct ' + sname : '(無名構造体)', fields);
+            if (ph) { Object.assign(ph, lay); delete ph.incomplete; base = ph; } else base = lay;
           } else {
-            if (!sname || !structs[sname]) err('構造体 ' + sname + ' は定義されていません');
+            if (!sname) err('構造体名が必要です');
+            if (!structs[sname]) { if (!isP('*')) err('構造体 ' + sname + ' は定義されていません'); structs[sname] = { k: 'struct', name: 'struct ' + sname, fields: [], size: 0, incomplete: true }; }
             base = structs[sname];
           }
           seen = true; continue;
@@ -312,7 +316,7 @@
       const t = next();
       if (t.ty === 'num') return { k: 'num', v: t.v, t: t.isF ? T.double : t.isL ? T.long : t.isChar ? T.int : t.v > 2147483647 ? T.long : T.int, loc: loc(t) };
       if (t.ty === 'str') { let s = t.v; while (peek().ty === 'str') s += next().v; return { k: 'str', s, loc: loc(t) }; }
-      if (t.ty === 'id') { if (BASE_KW.has(t.v) && t.v !== 'size_t') err('ここに型名「' + t.v + '」は書けません', t); return { k: 'id', name: t.v, loc: loc(t) }; }
+      if (t.ty === 'id') { if (BASE_KW.has(t.v) && !['size_t', 'clock_t', 'time_t'].includes(t.v)) err('ここに型名「' + t.v + '」は書けません', t); return { k: 'id', name: t.v, loc: loc(t) }; }
       if (t.ty === 'p' && t.v === '(') { const e = expr(); eat(')'); return e; }
       err(t.ty === 'eof' ? 'プログラムが途中で終わっています (「}」の数を確認してください)' : '式が必要な場所に「' + t.v + '」があります', t);
     }
@@ -380,8 +384,9 @@
         next();
         const bt = baseType().type;
         const d = declarator(bt);
-        typedefs[d.name] = d.type.k === 'struct' ? { ...d.type, name: d.name } : d.type;
-        if (d.type.k === 'struct') { const nt = typedefs[d.name]; for (const k in structs) if (structs[k] === d.type) structs[k] = nt; }
+        /* 構造体の typedef は同じオブジェクトに名前を付ける (struct node_s * と node_t * を同じ型として扱うため) */
+        if (d.type.k === 'struct' && (/^struct |^\(無名/.test(d.type.name))) { d.type.name = d.name; typedefs[d.name] = d.type; }
+        else typedefs[d.name] = d.type.k === 'struct' ? { ...d.type, name: d.name } : d.type;
         eat(';'); continue;
       }
       if (isP(';')) { next(); continue; }
@@ -486,6 +491,7 @@
     const echoTo = (p) => { if (p <= echoPos) return; let j = stdin.indexOf('\n', p - 1); j = j < 0 ? stdin.length : j + 1; tw('in', stdin.slice(echoPos, j)); echoPos = j; };
     const echoEof = () => { echoTo(stdin.length); if (!eofShown) { eofShown = true; tw('eof', '^D\n'); } };
     const rng = new GlibcRand();
+    const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
     /* 仮想ファイルシステム (fopen / fread / fwrite 用): opt.vfs = { name: Uint8Array } */
     const vfs = {}; Object.keys(opt.vfs || {}).forEach((k) => (vfs[k] = opt.vfs[k]));
     const fhs = new Map(); let fhNext = 1;
@@ -1058,6 +1064,8 @@
       fmod: (a) => num(a[0].v % a[1].v), round: (a) => num(Math.sign(a[0].v) * Math.round(Math.abs(a[0].v))),
       rand: () => ({ v: rng.next(), t: T.int }), srand: (a) => { rng.seed(a[0].v); return { v: 0, t: T.void }; },
       time: () => ({ v: 1700000000, t: T.long }),
+      /* clock(): このページでプログラムが使った時間 (マイクロ秒単位, CLOCKS_PER_SEC = 1000000) */
+      clock: () => ({ v: Math.round(((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0) * 1000), t: T.long }),
       strlen: (a) => ({ v: strBytes(readStr(a[0].v)), t: T.long }),
       strcpy: (a) => { writeStr(a[0].v, readStr(a[1].v)); return a[0]; },
       strncpy: (a) => { const b = utf8(readStr(a[1].v)); const n = a[2].v; for (let i = 0; i < n; i++) store(a[0].v + i, T.char, i < b.length ? b[i] : 0); return a[0]; },
@@ -1308,7 +1316,7 @@
       return { ok: false, error: { msg: e.isC ? e.message : '構文の解析に失敗しました: ' + e.message, loc: e.loc } };
     }
   }
-  const BUILTIN_NAMES = ['printf', 'fprintf', 'scanf', 'puts', 'putchar', 'getchar', 'sqrt', 'fabs', 'abs', 'pow', 'floor', 'ceil', 'log', 'exp', 'cos', 'sin', 'fmod', 'round', 'rand', 'srand', 'time', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'assert', 'exit', 'fopen', 'fclose', 'fread', 'fwrite', 'malloc', 'calloc', 'realloc', 'free', 'fgets', 'strcat', 'strncmp', 'memset', 'sizeof'];
+  const BUILTIN_NAMES = ['printf', 'fprintf', 'scanf', 'puts', 'putchar', 'getchar', 'sqrt', 'fabs', 'abs', 'pow', 'floor', 'ceil', 'log', 'exp', 'cos', 'sin', 'fmod', 'round', 'rand', 'srand', 'time', 'clock', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'assert', 'exit', 'fopen', 'fclose', 'fread', 'fwrite', 'malloc', 'calloc', 'realloc', 'free', 'fgets', 'strcat', 'strncmp', 'memset', 'sizeof'];
 
   global.CLab = { run, compile, BUILTIN_NAMES, typeStr, tokenize, CError, kindLabel };
 })(window);

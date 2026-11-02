@@ -2002,3 +2002,12 @@ body.ed-full-on::after { content: ''; position: fixed; inset: 0; z-index: 299; b
   .etb-ro { order: 9; width: 100%; text-align: center; }
   .ed-wrap.ed-full { inset: 0; border-radius: 0; box-shadow: none; }
 }
+
+/* ---- B6: gcc 計測表 ---- */
+.b6-tbl-wrap { overflow-x: auto; margin: 8px 0 10px; border-radius: 14px; border: 1.5px solid var(--line, #f0dccb); background: #fff; -webkit-overflow-scrolling: touch; }
+.b6-tbl { border-collapse: collapse; width: 100%; min-width: 520px; font: 12.5px/1.4 var(--mono, ui-monospace, monospace); }
+.b6-tbl th, .b6-tbl td { padding: 6px 10px; text-align: right; border-bottom: 1px solid rgba(0,0,0,.06); white-space: nowrap; }
+.b6-tbl thead th { background: var(--peach, #ffe3cf); font-weight: 700; text-align: center; font-family: inherit; }
+.b6-tbl tbody td:first-child { font-weight: 700; text-align: center; background: rgba(255,227,207,.35); }
+.b6-tbl td.per { color: var(--ptr, #f2467f); font-weight: 700; }
+.b6-tbl tbody tr:last-child td { border-bottom: 0; }

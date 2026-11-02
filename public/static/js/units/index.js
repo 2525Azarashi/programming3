@@ -7,5 +7,6 @@ window.UNIT_INDEX = [
   { id: 'b3', title: 'ポインタ', desc: '番地・& と *・ポインタ引数・構造体/配列へのポインタ', ready: true, nTask: 12, nPred: 6 },
   { id: 'b4', title: '配列と構造体', desc: '2 次元配列と行列・構造体の配列 pixel_t・配列を持つ構造体・画像処理', ready: true, nTask: 16, nPred: 5 },
   { id: 'b5', title: '動的割当て', desc: 'malloc と free・sizeof・文字列と構造体の動的割当て・realloc とスタック', ready: true, nTask: 14, nPred: 5 },
-  { id: 'b6', title: 'Coming next', desc: '次回の資料 PDF を送ると, ここに単元が追加されます', ready: false, note: '次回' },
+  { id: 'b6', title: 'リスト処理', desc: '自己参照構造体・ダミー節点・挿入/探索/削除・計算時間 O(n)・二分探索木', ready: true, nTask: 14, nPred: 5 },
+  { id: 'b7', title: 'Coming next', desc: '次回の資料 PDF を送ると, ここに単元が追加されます', ready: false, note: '次回' },
 ];
