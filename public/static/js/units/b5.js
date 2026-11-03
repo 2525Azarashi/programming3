@@ -10,6 +10,7 @@
   const G = D.given || {};
 
   const C = {
+    arrow: "#include <stdio.h>\n#include <string.h>\n\nint main(void)\n{\n    char *p, s[10];\n\n    p = s;\n    strcpy(p, \"Hello\");\n    printf(\"%s\\n\", s);\n    return 0;\n}\n",
     sz: R`#include <stdio.h>
 
 int main(void)
@@ -269,6 +270,8 @@ int main(void)
       blocks: [
         { type: 'predict', id: 'p0', code: C.sz, hl: [8, 9], q: 'スライド「sizeof 演算子」より。<code class="ic">sizeof array</code> と <code class="ic">sizeof p_array</code> の出力は?', choices: ['<code>40</code> と <code>40</code> — 同じ配列だから', '<code>40</code> と <code>8</code>', '<code>10</code> と <code>1</code>'], answer: 1, explain: 'sizeof は<b>型の大きさ</b>を返す演算子。配列 array は int 10 個で 40 バイト。p_array は配列を指していても<b>ポインタ 1 つ</b>なので 8 バイト。malloc で借りた領域の大きさは, ポインタからは sizeof で取り出せない。' },
         { type: 'callout', kind: 'info', html: '<b>sizeof は「演算子」で, 関数ではない。</b><code class="ic">sizeof(int)</code> と <code class="ic">sizeof int</code> は同じ意味 (変数なら括弧なしでも書ける)。malloc の引数は<b>バイト数</b>なので, いつも <code class="ic">sizeof(型) * 個数</code> の形で書く。' },
+        { type: 'callout', kind: 'warn', html: '<b>提出〆切: 2026/11/08 (日) 23:59</b> — レポート提出システムから。資料「[B5] 動的割り当て」中に指示される<b>全てのプログラム</b>を完成させること (課題 5-1〜5-8。オプション 5-1, 5-2 は任意)。レポート B5.txt は 08 章で自動生成できます。' },
+        { type: 'callout', kind: 'info', html: '<b>オンデマンドビデオ (第七回「動的割り当て」)</b> — このページの対応する章に要点をまとめています。<br>① <b>動的割り当て</b> (08:14) → 01 malloc・02 free・00 sizeof<br>② <b>【補足】ポインタの矢印表現</b> (02:22) → 01 の最後<br>③ <b>【補足】データ構造「スタック」</b> (03:31) → 05 スタック' },
       ],
     },
     {
@@ -281,6 +284,9 @@ int main(void)
         { type: 'point', n: 2, title: '借りた直後の中身は<b>不定</b>。malloc が失敗すると <b>NULL</b>', sub: '値を代入してから使う (0 で初期化済みが欲しければ calloc)。例題 5-1 のように <code class="ic">if (a==NULL) { fprintf(stderr, …); exit(1); }</code> で失敗に備える。' },
         { type: 'predict', id: 'p1', code: C.p1, hl: [9], q: 'n = 4 個の int を借りて, a[i] = i*i を入れる。出力は?', placeholder: '例: 0 0', explain: 'a[3] = 3×3 = <b>9</b>。借りたバイト数は sizeof(int)×4 = <b>16</b>。答えは <b>9 16</b>。n を変えれば借りる量も変わる — これが「実行時に大きさを決める」ということ。' },
         { type: 'callout', kind: 'tip', html: '<b>【参考】malloc の返り値はキャストしないことが推奨</b> (資料より)。<code class="ic">a = malloc(sizeof(int)*n);</code> (推奨) / <code class="ic">a = (int *) malloc(sizeof(int)*n);</code> (非推奨)。void * はどのポインタ型にもそのまま代入できる。' },
+        { type: 'callout', kind: 'tip', html: '<b>動画 ① のポイント</b> — 普通の変数 (int a; など) は宣言すると自動で確保され, 関数が終わると自動で解放される。動的割り当てでは, 実行中に <b>OS のヒープ領域</b>から必要なバイト数を借り (malloc), 自分で返す (free)。図では <code class="ic">a</code> (100 番地, プログラムのメモリ) に <b>500</b> (ヒープの番地) が入り, <code class="ic">a[3] = 123;</code> は間接アドレッシングでヒープに書き込む。<br>※動画のスライドには <code class="ic">(int *)malloc(…)</code> とキャスト付きの書き方も出てくるが, 資料の【参考】どおり<b>キャストしない書き方が推奨</b>。' },
+        { type: 'point', n: '+', title: '【補足】ポインタの<b>矢印表現</b> — 「番地が入っている」を「指している」と描く', sub: '動画 ②: <code class="ic">p = s;</code> で p (100 番地) に配列 s の番地 130 が入る。これを <b>p → s[10]</b> と矢印で描くのが矢印表現。B5 のスタック, B6 のリスト・二分木では複雑なポインタ構造が出てくるので, この描き方に慣れておこう。' },
+        { type: 'tracer', code: C.arrow, name: '動画 ②「ポインタの矢印表現」', title: 'p の箱から s へ伸びる矢印 = p に s の番地が入っている (このサイトでは main は 100 番地〜)' },
       ],
     },
     {
@@ -290,6 +296,7 @@ int main(void)
       blocks: [
         { type: 'point', n: 3, title: '<code>free(a); a = NULL;</code> をセットで', sub: 'free した後も a には古い番地が残っている (ぶら下がりポインタ)。NULL (0 番地) を入れておけば, 誤って使ったときにすぐ気づける。' },
         { type: 'callout', kind: 'info', html: '<b>このサイトの検査</b>: 範囲外アクセス・free 後の使用・二重 free・未初期化の読み出しは実行時エラーで止まり, 終了時に返却されていない領域は「<b>free 忘れ</b>」として表示されます (gcc では黙って動いてしまうことが多い不具合です)。' },
+        { type: 'callout', kind: 'warn', html: '<b>動画 ① より</b>: 「借りたメモリ領域は使い終わったら<b>必ず</b>返す。これを怠ると『メモリリーク』が起きて, システムクラッシュなど深刻なサービス障害を引き起こしかねない」「free した後すぐに <code class="ic">a = NULL;</code> としておけば, 解放した領域に誤って読み書きすることを防げる」。' },
         { type: 'mistakes', items: [
           { title: 'free した後に使う', code: C.m2, fix: 'free した領域はもう自分のものではない。gcc では「たまたま動く」こともあるが, 別の malloc に再利用されて値が壊れる。<b>free の直後に <code class="ic">a = NULL;</code></b> を書く習慣を。' },
           { title: '借りた直後の中身を読む', code: C.m3, fix: 'malloc 直後の中身は不定 (ゴミ)。代入してから読むか, 0 で初期化したいなら <code class="ic">calloc(3, sizeof(int))</code> を使う。課題 5-2 のカウント用配列はここで引っかかりやすい。' },
@@ -328,6 +335,7 @@ int main(void)
       title: '最後に入れたものを, 最初に取り出す。',
       lead: 'スタックは FILO (First In Last Out)。3, 2, 1 の順に積むと 1, 2, 3 の逆順で出てくる。深さを実行時に決めたいから, データ領域は malloc で借りる。',
       blocks: [
+        { type: 'callout', kind: 'info', html: '<b>動画 ③「データ構造『スタック』」</b> — スタックは<b>バネのついた井戸</b>のようなもの。<b>push</b> すると入力が 1 個井戸に積み込まれ (1 → 2 → 3), <b>pop</b> するたびに一番上から出てくる (3 → 2 → 1)。出力の順番が入力と<b>逆</b>になる — これが <b>FILO (First In Last Out)</b>。深さを実行時に決めたいので, istack_new の中で malloc し (構造体 + データ領域), istack_delete の中で free する。動画でも「<b>free の順番が重要です。よく考えてください</b>」と強調されている (→ 下の point 7)。' },
         { type: 'point', n: 6, title: 'push: <code>data[sp] = d; sp++;</code> / pop: <code>sp--; return data[sp];</code>', sub: 'sp (スタックポインタ) =「今いくつ入っているか」= 次に入れる場所。空は sp == 0, 満杯は sp == size。' },
         { type: 'predict', id: 'p4', code: C.p4, q: '1, 2, 3 を push → pop, pop → 9 を push → pop。出力は?', placeholder: '例: 1 2 3', explain: '最初の pop は最後に入れた <b>3</b>, 次は <b>2</b>。残りは [1]。9 を push して pop すると <b>9</b>。答えは <b>3 2 9</b>。' },
         { type: 'tracer', code: C.stk, name: 'istack の構造', title: '入れ物 (istack_t) と中身 (data) の <b>2 ブロック</b> — realloc で中身だけ 2 倍に引っ越す' },
@@ -364,7 +372,7 @@ int main(void)
     {
       id: 'report', num: '08', group: '課題', kicker: 'Report', navTitle: 'レポート作成',
       title: 'レポートを, 自動で組み立てる。',
-      lead: '課題ラボの実行結果と「工夫した点」「感想」のメモから, B4 と同じ形式のレポート (B5.txt) を生成します。',
+      lead: '課題ラボの実行結果と「工夫した点」「感想」のメモから, B4 と同じ形式のレポート (B5.txt) を生成します。<b>提出〆切は 2026/11/08 (日) 23:59</b>。',
       blocks: [{ type: 'report' }],
     },
   ];
