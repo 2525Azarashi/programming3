@@ -51,6 +51,7 @@
       h('a.brand', { href: '/' }, h('span.brand-mark', h('b', '*'), 'p'), h('span', 'PIII LAB', h('small', 'プログラミング実習Ⅲ'))),
       extra && extra.crumb ? h('div.crumb', h('span', '/'), h('b', extra.crumb)) : null,
       h('div.sp'),
+      window.Guide ? h('button.btn.sm.ghost.phrase-btn', { 'aria-label': '定型フレーズ図鑑', onclick: () => Guide.openPhraseBook(unitId || 'all') }, icon('book'), h('span.sb-t', 'フレーズ図鑑')) : null,
       h('button.btn.sm.ghost.search-btn', { 'aria-label': '検索 (Ctrl+K)', onclick: () => U.palette() }, icon('search'), h('span.sb-t', '検索'), h('kbd', '/')),
       extra && extra.progress ? h('div.progress-pill', h('span.pct', '0%'), h('span.ring')) : null,
       h('div.topbar-progress'));
@@ -155,6 +156,7 @@
           h('p.home-lead', 'コードが「メモリの上で何をしているか」を, 1 行ずつ目で見て理解する。サカイさんとリョウガさんの会話を読みながら, 予想して, 動かして, 自分で書く。課題とレポートまで, このページで完結します。'),
           h('div', { style: { display: 'flex', gap: '12px', flexWrap: 'wrap' } },
             h('a.btn.ptr', { href: '/' + nx.id }, (started ? '続きから: ' : '') + nx.id.toUpperCase() + ' ' + nx.title + (started ? '' : ' から始める'), icon('arrow')),
+            window.Guide ? h('button.btn', { type: 'button', onclick: () => Guide.openPhraseBook('all') }, icon('book'), '定型フレーズ図鑑') : null,
             h('a.btn', { href: '#units' }, '単元一覧'))),
         h('div.hero-art', cast),
         h('div.stickers', { 'aria-hidden': 'true' }, ['&', '*', '{ }', '0x64', '→', ';'].map((t, i) => h('span.stk.stk' + i, t)))),
@@ -187,6 +189,11 @@
 
     // 章
     const navItems = [];
+    const essSec = window.Guide && Guide.renderUnitEssentials ? Guide.renderUnitEssentials(unitId) : null;
+    if (essSec) {
+      main.appendChild(essSec);
+      navItems.push({ group: '理解の核', id: 'essentials', n: '★', t: 'エッセンシャル & フレーズ' });
+    }
     U0.chapters.forEach((c) => {
       const sec = h('section.chap#' + c.id, { 'aria-labelledby': c.id + '-h' },
         h('div.chap-head.rv', h('div.chap-num', c.num), h('div', h('div.chap-kicker', c.kicker), h('h2#' + c.id + '-h', c.title), c.lead ? h('p.chap-lead', c.lead) : null)));
@@ -273,7 +280,7 @@
       case 'talk': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, talk(b.lines));
       case 'point': return h('div.blk', h('div.point', h('div.pn', 'POINT ' + b.n), h('div', h('div.pt', { html: b.title }), b.sub ? h('div.ps', { html: b.sub }) : null)));
       case 'callout': return h('div.blk', h('div.callout.' + (b.kind || 'info'), { html: b.html }));
-      case 'code': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, U.copyable(codeBlock(b.code, { hl: b.hl }), () => b.code));
+      case 'code': { const cb = U.copyable(codeBlock(b.code, { hl: b.hl }), () => b.code); return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null, window.Guide ? Guide.enhanceCodeBlock(cb, b.code, b.title) : cb); }
       case 'compare': return h('div.blk', b.title ? h('div.blk-title', { html: b.title }) : null,
         h('div.compare', b.items.map((it) => h('div.cmp-card', h('h5', { html: it.title }), it.code ? codeBlock(it.code, { hl: it.hl }) : null, it.html ? h('div.prose', { style: { marginTop: '10px', fontSize: '14px' }, html: it.html }) : null))));
       case 'tracer': { const tr = MemViz.Tracer({ files: b.files || { 'main.c': b.code }, units: b.units || [b.main || 'main.c'], stdin: b.stdin, showStdin: b.showStdin, title: '' }); const t = tr.querySelector('.tr-head .t'); t.innerHTML = b.title || U.esc(b.name || 'ステップ実行'); return h('div.blk', tr); }
@@ -896,9 +903,21 @@
       U.ask({ title: '模範解答を表示する?', sub: t.label + ' ' + t.short, html: 'まずは自分で書いてみるのがおすすめ。ヒントは <b>' + t.hints.length + ' 個</b>あるよ。', ok: '表示する', cancel: 'もう少し考える', face: 'r', mood: 'think' }).then((y) => { if (y) showAnswer2(); });
     }
     function showAnswer2() {
+      const sol = (window.Guide && Guide.resolveTaskSolution ? Guide.resolveTaskSolution(unitId, t) : null) || t.solution || {};
       const box = h('div', { style: { marginTop: '8px' } });
-      Object.keys(t.solution).forEach((f) => box.append(h('div.c-mute', { style: { fontSize: '11px', margin: '6px 0 4px', fontFamily: 'var(--f-mono)' } }, f), U.copyable(codeBlock(t.solution[f]), () => t.solution[f])));
-      box.appendChild(h('button.btn.sm', { style: { marginTop: '8px' }, onclick: () => { U.ask({ title: 'エディタを模範解答で置き換える?', html: '今のコードは消えます (「元に戻す」で 1 回だけ復元できます)。', ok: '置き換える', danger: true }).then((y) => { if (!y) return; const bak = Object.assign({}, files); Object.keys(t.solution).forEach((f) => { if (t.files.includes(f)) { files[f] = t.solution[f]; store.set(codeKey(f), t.solution[f]); } }); curFile = null; switchFile(t.files[0]); toast('模範解答を読み込みました', { action: '元に戻す', onAction: () => { Object.keys(bak).forEach((f) => { files[f] = bak[f]; store.set(codeKey(f), bak[f]); }); curFile = null; switchFile(t.files[0]); toast('元に戻しました', { type: 'info' }); } }); }); } }, '解答をエディタに読み込む'));
+      Object.keys(sol).forEach((f) => box.append(h('div.c-mute', { style: { fontSize: '11px', margin: '6px 0 4px', fontFamily: 'var(--f-mono)' } }, f), U.copyable(codeBlock(sol[f]), () => sol[f])));
+      const row = h('div', { style: { marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+        h('button.btn.sm', { onclick: () => { U.ask({ title: 'エディタを模範解答で置き換える?', html: '今のコードは消えます (「元に戻す」で 1 回だけ復元できます)。', ok: '置き換える', danger: true }).then((y) => { if (!y) return; const bak = Object.assign({}, files); Object.keys(sol).forEach((f) => { if (t.files.includes(f)) { files[f] = sol[f]; store.set(codeKey(f), sol[f]); } }); curFile = null; switchFile(t.files[0]); toast('模範解答を読み込みました', { action: '元に戻す', onAction: () => { Object.keys(bak).forEach((f) => { files[f] = bak[f]; store.set(codeKey(f), bak[f]); }); curFile = null; switchFile(t.files[0]); toast('元に戻しました', { type: 'info' }); } }); }); } }, '解答をエディタに読み込む'));
+      if (window.Guide && Guide.annotatedCode) {
+        row.appendChild(h('button.btn.sm.ptr', { onclick: () => {
+          const gd = (window.GUIDE_DATA && window.GUIDE_DATA.tasks && window.GUIDE_DATA.tasks[unitId + ':' + t.id]) || {};
+          const focused = Guide.extractTaskFocusedSolution ? Guide.extractTaskFocusedSolution(unitId, t, sol) : sol;
+          traceHost.innerHTML = '';
+          traceHost.appendChild(Guide.annotatedCode(focused, { title: t.label + ' — 模範解答の1行ずつの意図・役割', overrides: gd.lines }));
+          setTimeout(() => traceHost.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+        } }, icon('layers'), '1行ずつの意図を下に大きく表示'));
+      }
+      box.appendChild(row);
       ansHost.innerHTML = ''; ansHost.appendChild(box);
     }
     const ansHost = h('div');
@@ -935,6 +954,7 @@
       h('div.task-head', h('div', h('div.tn', '課題 ' + t.label), h('h3', t.title)), h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' } }, t.files.map((f) => h('span.chip.val', f)))),
       t.intro ? h('div.task-intro', talk(t.intro, { compact: true })) : null,
       h('div.task-spec', { html: t.spec }),
+      window.Guide && Guide.renderTaskBlueprint ? Guide.renderTaskBlueprint(unitId, t) : null,
       h('div.task-body',
         h('div.task-editor', edWrap,
           h('div.task-actions',
@@ -1047,8 +1067,12 @@
     const items = [];
     const strip = (x) => String(x || '').replace(/<[^>]+>/g, '');
     (window.UNIT_INDEX || []).filter((u) => u.ready).forEach((u) => items.push({ kind: '単元', kc: 'k1', label: u.id.toUpperCase() + ' ' + u.title, sub: u.desc, href: '/' + u.id, pri: u.id === unitId ? 5 : 20 }));
+    if (window.GUIDE_DATA && window.GUIDE_DATA.phrases && window.Guide) {
+      window.GUIDE_DATA.phrases.forEach((p) => items.push({ kind: 'フレーズ', kc: 'k4', label: p.title, sub: p.unit.toUpperCase() + ' · ' + p.code.split('\n')[0], kw: p.cat + ' ' + p.code + ' ' + strip(p.intent), run: () => Guide.openPhraseModal(p.id), pri: 18 }));
+    }
     const U0 = unitId && window.UNITS[unitId];
     if (U0) {
+      if (document.getElementById('essentials')) items.push({ kind: '理解の核', kc: 'k3', label: '理解のエッセンシャル & 覚えるべき定型フレーズ', sub: U0.title + ' の本質と頻出イディオム', go: '#essentials', pri: 35 });
       U0.chapters.forEach((c) => {
         items.push({ kind: '章 ' + c.num, kc: 'k2', label: strip(c.navTitle || c.title), sub: strip(c.title), kw: c.kicker, go: '#' + c.id, pri: 40 });
         c.blocks.forEach((b) => {
