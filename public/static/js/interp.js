@@ -233,9 +233,18 @@
     function declarator(bt, abstract) {
       let t = bt;
       while (isP('*')) { next(); while (isId('const')) next(); t = ptr(t); }
+      /* 括弧付き宣言子: char (*a)[N] など配列へのポインタ */
+      let inner = null;
+      if (isP('(') && !isTypeStart(1) && !isP(')', 1)) {
+        next();
+        inner = declarator(T.void, abstract);
+        eat(')');
+      }
       let name = null, nameTok = peek();
-      if (peek().ty === 'id' && !abstract) name = next().v;
-      else if (peek().ty === 'id' && abstract && !isTypeStart()) name = next().v;
+      if (!inner) {
+        if (peek().ty === 'id' && !abstract) name = next().v;
+        else if (peek().ty === 'id' && abstract && !isTypeStart()) name = next().v;
+      }
       const dims = [];
       while (isP('[')) {
         next();
@@ -243,6 +252,15 @@
         else { dims.push(constExpr(expr())); eat(']'); }
       }
       for (let i = dims.length - 1; i >= 0; i--) t = { ...arr(t, dims[i] || 0), open: dims[i] === null };
+      if (inner) {
+        const subst = (x) => {
+          if (x === T.void) return t;
+          if (x.k === 'ptr') return ptr(subst(x.to));
+          if (x.k === 'arr') return { ...arr(subst(x.of), x.n), open: x.open };
+          return x;
+        };
+        return { name: inner.name, type: subst(inner.type), tok: inner.tok };
+      }
       return { name, type: t, tok: nameTok };
     }
     function constExpr(e) {

@@ -5,6 +5,7 @@
 (function () {
   'use strict';
   const { h, icon } = U;
+  const W = window.B6_CODE || {};
   const C = {
     p0: "#include <stdio.h>\n\ntypedef struct list_node_s {\n    int val;\n    struct list_node_s *next;\n} list_node_t;\n\nint main(void)\n{\n    list_node_t a, b, c;\n\n    a.val = 10; a.next = &b;\n    b.val = 20; b.next = &c;\n    c.val = 30; c.next = NULL;\n\n    printf(\"%d %d\\n\", (int)sizeof(list_node_t), a.next->next->val);\n    return 0;\n}\n",
     demo: "#include <stdio.h>\n#include <stdlib.h>\n\ntypedef struct list_node_s {\n    int val;\n    struct list_node_s *next;\n} list_node_t;\n\nlist_node_t* create_node(int val)\n{\n    list_node_t *new_node = malloc(sizeof(list_node_t));\n    new_node->val = val;\n    new_node->next = NULL;\n    return new_node;\n}\n\n/* n の直後に挿入 (スライド「insert_node()」) */\nlist_node_t* insert_node(list_node_t *n, int val)\n{\n    list_node_t *new_node = create_node(val);\n    new_node->next = n->next;   /* (1) 新しい節点の次 = n の次 */\n    n->next = new_node;         /* (2) n の次 = 新しい節点 */\n    return new_node;\n}\n\nint main(void)\n{\n    list_node_t *head_p = create_node(0);   /* ダミー */\n    list_node_t *p, *next;\n\n    insert_node(head_p, 3);\n    insert_node(head_p, 5);\n    insert_node(head_p, 4);\n\n    for (p = head_p->next; p != NULL; p = p->next) {\n        printf(\" %d\", p->val);\n    }\n    printf(\"\\n\");\n\n    for (p = head_p; p != NULL; p = next) {   /* 後始末 */\n        next = p->next;\n        free(p);\n    }\n    return 0;\n}\n",
@@ -41,8 +42,10 @@
       title: 'アルゴリズム + データ構造 = プログラム。',
       lead: 'B5 のスタックに続いて, B6 では「リスト」と「二分木」を作る。どちらも malloc で 1 個ずつ借りた節点 (ノード) を, ポインタでつないだデータ構造。',
       blocks: [
+        { type: 'widget', make: () => W.essenceMap && W.essenceMap() },
         { type: 'callout', kind: 'info', html: '<b>この先の地図</b> (スライドより) — データ構造: スタック (B5) / <b>リスト (B6)</b> / <b>二分木 (B6)</b>。アルゴリズム: ソート (B7) / 探索・ハッシュ (B8)。今日作る list.c と tree.c は, この後の単元の土台になる。' },
         { type: 'point', n: 1, title: '配列は長さが<b>固定</b>, リストは長さを<b>自由に変えられる</b>', sub: '配列の途中に 1 個入れるには後ろを全部ずらす必要がある。リストは矢印 (next) を 2 本つなぎ替えるだけ。その代わり「k 番目」に直接飛べない。' },
+        { type: 'widget', make: () => W.vsArray && W.vsArray() },
       ],
     },
     {
@@ -61,6 +64,7 @@
       lead: '先頭の節点は中身を持たない「ダミー (ヘッダ)」。だから空のリストでも head_p はいつも 1 個の節点を指していて, 「先頭への挿入」も「途中への挿入」も同じ insert_node で書ける。',
       blocks: [
         { type: 'point', n: 3, title: '<code>new_node-&gt;next = n-&gt;next;</code> → <code>n-&gt;next = new_node;</code>', sub: '(1) 新しい節点に「n の次だった節点」を覚えさせる → (2) n の矢印を新しい節点へ。逆にすると (1) の時点で n の次がもう new_node になっていて, 後ろが行方不明になる。' },
+        { type: 'widget', make: () => W.spliceLab && W.spliceLab() },
         { type: 'tracer', code: C.demo, name: 'スライド「insert_node()」', title: 'ダミーの直後に 3, 5, 4 を挿入 — ヒープに 16 バイトの節点が並び, next の矢印 (番地) が書き換わっていく' },
         { type: 'predict', id: 'p1', code: C.demo, hl: [31, 32, 33], q: 'ダミーの直後に 3 → 5 → 4 の順で挿入して表示。出力は?', placeholder: '例:  3 5 4', explain: 'いつも<b>ダミーの直後 = 先頭</b>に入れるので, 後から入れたものほど前に来る。答えは <b> 4 5 3</b> (list1test.c の動作例と同じ並び)。' },
         { type: 'mistakes', items: [
@@ -76,6 +80,7 @@
       blocks: [
         { type: 'point', n: 4, title: '型 A: <code>p = head_p-&gt;next; p != NULL</code> — 各節点を見る (print, find)', sub: '見つけたら <code class="ic">return p;</code>, 最後まで無ければ <code class="ic">return NULL;</code>。list_insert_uniq は find して無いときだけ list_insert。' },
         { type: 'point', n: 5, title: '型 B: <code>p = head_p; p-&gt;next != NULL</code> で <code>p-&gt;next-&gt;val</code> を見る — <b>先読み</b>', sub: '見つかった時点で p は目的の節点の<b>直前</b>。削除 (remove_node(p)) や「p の直後に挿入」(昇順挿入) にそのまま使える。ダミーから始めるので先頭の節点も特別扱い不要。' },
+        { type: 'widget', make: () => W.lookaheadLab && W.lookaheadLab() },
         { type: 'predict', id: 'p2', code: C.p2, hl: [28, 29, 30, 31], q: 'リストは [ 4 9 2 7 ]。先読みで値 2 を探して break。<code class="ic">p-&gt;val</code> と <code class="ic">cnt</code> は?', placeholder: '例: 2 3', explain: 'p はダミー → 4 → 9 と進み, p が 9 のとき p->next->val が 2 になって止まる。p は 2 の<b>直前</b>の 9, 進んだ回数は 2。答えは <b>9 2</b>。' },
         { type: 'mistakes', items: [
           { title: '&& の左右が逆', code: C.m3, fix: '末尾で p->next が NULL になったとき, 先に <code class="ic">p-&gt;next-&gt;val</code> を読んでしまう。<b>&& は左から評価され, 左が偽なら右は評価されない</b>ので, <code class="ic">p-&gt;next != NULL &amp;&amp; p-&gt;next-&gt;val != 9</code> の順に書く。' },
@@ -99,6 +104,7 @@
       title: 'n が 5 倍なら, 1 個あたりも 5 倍。',
       lead: 'list_find は先頭から 1 つずつ見ていく。n 個入ったリストなら平均 n/2 個 (見つからなければ n 個)。だから 1 回の時間は n に比例し, n 回行う合計は n² に比例する。',
       blocks: [
+        { type: 'widget', make: () => W.raceLab && W.raceLab() },
         { type: 'point', n: 7, title: '<code>clk_start = clock();</code> … <code>(double)(clk_end-clk_start)/CLOCKS_PER_SEC</code>', sub: '<code class="ic">&lt;time.h&gt;</code> が必要。clock() はプログラムが使った CPU 時間。乱数は myrand_init() でいつも同じ系列を作り直せるので, 「(1) と同じ乱数」で検索できる。' },
         { type: 'callout', kind: 'info', html: '<b>このサイトのインタプリタはブラウザ内で動くので, gcc より数百倍遅い</b>。課題ラボでは n = 200 で動作だけ確かめ, 本番の計測は gcc (<code class="ic">gcc list4time.c list.c myrand.c</code> → <code class="ic">echo 10000 | ./a.out</code>) で行おう。課題ラボの「考察」欄に, サンドボックスの gcc で測った表があります。' },
         { type: 'callout', kind: 'tip', html: '<b>考察の書き方</b>: 「合計時間」ではなく「<b>1 個あたり = 合計 ÷ n</b>」を n ごとに並べる。n を 2 倍にしたとき 1 個あたりも約 2 倍 → O(n)。ほぼ変わらない → O(1) や O(log n)。その理由を「1 回の操作で何個の節点を見るか」で説明する。' },
@@ -109,6 +115,7 @@
       title: '小さければ左, 大きければ右。',
       lead: '二分木の節点は矢印を 2 本 (left, right) 持つ。「左の子孫 < 自分 < 右の子孫」を守って入れておくと, 探すときに毎回半分を捨てられる — 二分探索木。',
       blocks: [
+        { type: 'widget', make: () => W.bstLab && W.bstLab() },
         { type: 'point', n: 8, title: '<code>root = tree_insert_uniq(root, v);</code> — 再帰で空き (NULL) を探して作る', sub: 'NULL に着いたら create_node して返し, 親がそれを left / right に受け取る。原型の最後の else は「大きいか<b>等しい</b>」なので, 6-9 では <code class="ic">else if (val &gt; n-&gt;data)</code> にして等しいときは何もしない。' },
         { type: 'tracer', code: C.tree, name: '教科書 6.2.1 二分木', title: '5, 3, 8, 1, 4 を挿入 — ヒープに 24 バイトの節点ができ, left / right の番地でつながる' },
         { type: 'predict', id: 'p4', code: C.tree, hl: [30, 31, 32], q: '原型の tree_print (自分 → 左 → 右) で, 5, 3, 8, 1, 4 を入れた木を表示すると?', choices: ['<code>[ 1 3 4 5 8 ]</code>', '<code>[ 5 3 1 4 8 ]</code>', '<code>[ 5 3 8 1 4 ]</code>'], answer: 1, explain: '根 5 → 左の部分木 (3 → 1 → 4) → 右の部分木 (8) の順で <b>[ 5 3 1 4 8 ]</b> (先行順)。課題 6-9 で printf を 2 つの再帰の<b>間</b>に移す (左 → 自分 → 右 = 中間順) と, 昇順 [ 1 3 4 5 8 ] になる。' },

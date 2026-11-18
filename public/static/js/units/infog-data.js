@@ -352,4 +352,44 @@
         { title: '<b>課題 6-9</b>: 左 → 自分 → 右', color: 'mint', steps: ['中間順 (inorder)', '<code class="ic">[ 1 3 4 5 8 ]</code> = 昇順'] },
       ], note: '二分探索木は「左 < 自分 < 右」なので, 中間順にたどると必ず昇順になる。' } },
   };
+  I.b7 = {
+    intro: { top: { kind: 'stats', tag: 'B7 IN NUMBERS', title: 'ソートで劇的に変わる数字', items: [
+      { value: 4, suffix: '倍', label: 'O(n²) で n が 2 倍のときの時間増加', color: 'pink' },
+      { value: 14, suffix: 'ms', label: 'クイックソートで乱数 65536 個を整列 (-O2)', color: 'sky' },
+      { value: 1, suffix: '回', label: '正順データで単純挿入法が各 k で比較する回数', color: 'mint' },
+      { value: 3, suffix: '箇所', label: '数値ソートを文字列・構造体ソートに変える修正点', color: 'lemon' },
+    ] } },
+    selection: { top: { kind: 'pipeline', tag: 'SELECTION SORT', title: 'k = 0 〜 n-2 で左から 1 個ずつ確定させる',
+      steps: [
+        { icon: 'k', label: 'min = k', sub: '左端を仮の最小に', color: 'lemon' },
+        { icon: '🔍', label: 'i = k+1..n-1', sub: 'a[i] < a[min] なら更新', color: 'sky' },
+        { icon: '⇄', label: 'swap(a[k], a[min])', sub: '1 回だけ席替え', color: 'pink' },
+        { icon: '✓', label: 'a[k] が確定', sub: '次の k へ', color: 'mint' },
+      ] } },
+    insertion: { top: { kind: 'compare2', tag: 'SELECTION VS INSERTION', title: '単純選択法と単純挿入法 — どこが決定的に違うか',
+      lanes: [
+        { title: '<b>単純選択法</b> (7-1, 7-2)', color: 'pink', steps: ['未整列の<b>全員</b>を見回して最小を探す', '整列済みでも比較は <b>n(n−1)/2 回</b>', '交換は各 k で 1 回だけ (最大 n−1 回)'], result: 'どんな並びでも常に O(n²)' },
+        { title: '<b>単純挿入法</b> (7-3, 7-4)', color: 'mint', steps: ['整列済みの右端から左へ滑り込ませる', '<code class="ic">a[i-1] &lt;= a[i]</code> で<b>即 break</b>', '正順なら比較 n−1 回で終了!'], result: 'ほぼ整列データなら O(n) で最速!' },
+      ] } },
+    quick: { top: { kind: 'pipeline', tag: 'QUICK SORT', title: '分割統治 (Divide & Conquer) の 3 ステップ',
+      steps: [
+        { icon: 'p', label: 'p = a[0]', sub: '基準値を決める', color: 'lemon' },
+        { icon: '⇄', label: 'l++, r-- で分割', sub: '前半 ≤ p, 後半 ≥ p', color: 'pink' },
+        { icon: 'L', label: 'sort(r+1, a)', sub: '前半 a[0]..a[r]', color: 'mint' },
+        { icon: 'R', label: 'sort(n-l, &a[l])', sub: '後半 a[l]..a[n-1]', color: 'sky' },
+      ] } },
+  };
+  I.t2 = {
+    format: { top: { kind: 'stats', tag: 'MIDTERM T2', title: '中間試験 T2 の数字', items: [
+      { value: 70, suffix: '分', label: '試験時間 (持ち込み不可・ネット切断)', color: 'ptr' },
+      { value: 4, suffix: '問', label: '出題数 (B5〜B8 から各 5 点 = 20 点満点)', color: 'sky' },
+      { value: 10, suffix: '点', label: '合格ライン (= 2 問を完璧に通せば合格)', color: 'ok' },
+      { value: 0, suffix: '点', label: 'sizeof 未使用・線形探索など題意違反時', color: 'addr' },
+    ] } },
+    strict: { top: { kind: 'compare2', tag: 'STRICT GRADING', title: 'T2 予告で名指しされた「出力が合っていても 0 点」になる 2 大減点トラップ',
+      lanes: [
+        { title: '<b>① malloc の書き方違反 (課題 5-1, 5-3)</b>', color: 'pink', steps: ['<code class="ic">malloc(4 * n)</code> → <b>0 点!</b> (<code class="ic">sizeof</code> を使っていない)', '<code class="ic">malloc(sizeof(char) * 2 * len)</code> → <b>0 点!</b> (<code class="ic">\'\\0\'</code> の +1 不足)', '正解: <code class="ic">malloc(sizeof(型) * ちょうどの要素数)</code>'], result: 'バイト数の一致 + sizeof 必須!' },
+        { title: '<b>② 二分探索になっていない (課題 8-4)</b>', color: 'sky', steps: ['<code class="ic">for (i=0; i&lt;n; i++)</code> で先頭から探す → <b>0 点!</b> (線形探索)', '出力の diff が完全一致しても<b>アルゴリズム検査で不正解</b>', '正解: <code class="ic">low, high, mid = (low+high)/2</code> で毎回半分に絞る'], result: 'O(log n) の二分探索ループ必須!' },
+      ] } },
+  };
 })();
