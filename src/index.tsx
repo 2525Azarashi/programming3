@@ -4,13 +4,15 @@ const app = new Hono()
 
 // 単元レジストリ (PDF を受け取るたびにここと public/static/js/units/ に追加する)
 const UNITS: Record<string, { title: string; desc: string; extra?: string[] }> = {
-  t1: { title: '中間試験対策', desc: '試験の形式・採点基準 (diff -Bw)・当日の手順・サンプルプログラム・重点復習・70 分の模擬試験 (隠しテスト付き)' },
+  t1: { title: '中間試験 T1 対策', desc: '試験の形式・採点基準 (diff -Bw)・当日の手順・サンプルプログラム・重点復習・70 分の模擬試験 (隠しテスト付き)' },
+  t2: { title: '中間試験 T2 対策', desc: 'B5〜B8 対象・malloc の sizeof 厳格採点・db_t 二分探索シミュレータ・配布サンプル解説・70 分模擬試験 3 回分' },
   b1: { title: 'Cプログラミングの基礎事項', desc: 'bit と型・標準入出力と標準エラー出力・リダイレクトと diff・EOF・配列と文字列', extra: ['code'] },
   b2: { title: '分割コンパイル', desc: '関数とプロトタイプ宣言・コンパイルとリンク・ヘッダファイル・構造体・乱数', extra: ['code'] },
   b3: { title: 'ポインタ', desc: '変数の番地・& と *・ポインタ引数・構造体/配列へのポインタ' },
   b4: { title: '配列と構造体', desc: '2 次元配列と行列・構造体の配列 (pixel_t)・配列を持つ構造体・ビットマップ画像処理', extra: ['code'] },
   b5: { title: '動的割当て', desc: 'malloc と free・sizeof・文字列と構造体の動的割当て・realloc を使った整数スタック' },
-  b6: { title: 'リスト処理', desc: '自己参照構造体とダミー節点・リストの挿入/探索/削除・計算時間の計測・二分探索木' },
+  b6: { title: 'リスト処理', desc: '自己参照構造体とダミー節点・リストの挿入/探索/削除・計算時間の計測・二分探索木', extra: ['code'] },
+  b7: { title: 'ソーティング', desc: '単純選択法・単純挿入法・計算時間 O(n²) vs O(n log n)・クイックソート・文字列/構造体ソート・バケツ法', extra: ['code'] },
 }
 
 const shell = (opts: { page: string; unit?: string; title: string; desc: string; extra?: string[] }) => `<!DOCTYPE html>

@@ -93,7 +93,7 @@
   }
 
   /* ================= ホーム ================= */
-  const UNIT_DECO = { t1: ['var(--ptr)', 'T1'], b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--lemon)', '[][]'], b5: ['var(--sky)', 'malloc'], b6: ['var(--peach)', '->next'], b7: ['var(--mint)', '?'] };
+  const UNIT_DECO = { t1: ['var(--ptr)', 'T1'], t2: ['var(--ptr)', 'T2'], b1: ['var(--mint)', '0101'], b2: ['var(--lav)', '.o'], b3: ['var(--pink)', '*p'], b4: ['var(--lemon)', '[][]'], b5: ['var(--sky)', 'malloc'], b6: ['var(--peach)', '->next'], b7: ['var(--mint)', 'sort'], b8: ['var(--sky)', '?'] };
   function bounceWord(word, cls) {
     return h('span' + (cls || ''), word.split('').map((ch, i) => h('span.w', { style: { '--d': i } }, ch === ' ' ? '\u00a0' : ch)));
   }
