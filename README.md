@@ -11,6 +11,7 @@
   - **B5 動的割当て** (`/b5`) — sizeof / malloc / free / 文字列 (strlen+1) / 構造体 (pref_t) / スタック istack と realloc。課題 5-1〜5-8 (12) + オプション 2。判定は diff に加え「割り当てバイト数がちょうどか」「free 忘れ (リーク) がないか」まで自動チェック
   - **B6 リスト処理** (`/b6`) — 自己参照構造体 / ダミー節点 / insert_node・list_print・list_find・insert_uniq・delete_dup / 先読み走査 / clock() による計算時間 O(n) / 二分探索木 (中間順表示・tree_find・O(log n))。課題 6-1〜6-5, 6-9 (6) + オプション 6-6〜6-8, 6-10, 6-11 (8)。表示の diff に加えて、隠しテストで関数の**戻り値** (find の NULL など) と free 忘れを判定。計算時間の課題は gcc の実測表を考察欄に表示
   - **B7 ソーティング** (`/b7`) — 単純選択法 (`swapmin`, `selection_sort`) / 単純挿入法 (`insert`, `insertion_sort`) / 計算時間と `-O2` 最適化計測 (`sort_cpu`) / クイックソート (`quick_sort`, 分割と再帰 O(n log n)) / 文字列ソート (`char (*a)[STRLEN+1]`, `strcmp`・`strcpy`) / 構造体ソート (`record_t`, 複数キー整列) / オプション: バケツ法 (`bucket_sort`)・頻度数え上げ法 (`dc_sort`) による O(n) 整列。全 10 課題 + 予想問題 4 題 + 5 つの「直感→本質」ビジュアルラボ (`b7-code.js`)
+  - **B8 二分探索とハッシュ** (`/b8`) — 空港データベース `db_t` × `record_t` (`key[4]` 直置き + `char *data` 動的割当て) / `db_dump` / 線形探索 `db_linear_search` O(n) / 二分探索 `db_binary_search` O(log n) (**中間試験 T2 必出**) / ハッシュ関数 `db_hash_f` とクローズドハッシュ法 (`db_hash_load`, `db_hash_search`) O(1) / 2,700 空港 × 10万回検索 `gcc -O0`・`-O2` 実測比較 / オプション: オープンハッシュ法 (`iata_db2.c`, 単方向リストによるチェイン法)。全 9 課題 + 予想問題 4 題 + 6 つのビジュアルラボ (`b8-code.js`)
   - **T2 中間試験対策** (`/t2`) — 2026 年度「中間試験 T2 について」完全対応（B5〜B8 対象・70 分・4 問 × 5 点）。**T2 特有の厳格採点ルール（`malloc` の `sizeof` 必須・ちょうどのバイト数確保・`db_t` で線形探索なら出力一致でも 0 点）の体験チェッカー** / 配布サンプルプログラム（`malloc`/`free` + `strcmp` の 0・負・正）解説・予想問題・ステップ実行 / **課題 (8-4) `db_t` 二分探索インタラクティブ・シミュレータ** / **70 分タイマー付き模擬試験 3 回分（計 12 問）+ 腕試し 2 問（すべて隠しテスト・リーク検査・厳格題意チェック付き）**
 - 回ごとに PDF を受け取り、単元を追加していく構成。
 
@@ -29,6 +30,7 @@
 - `/` — 単元一覧
 - `/t2` — 中間試験 T2 対策（`#mock` 模擬試験, `#bsearch` 8-4 二分探索図解, `#strict` 厳格採点トラップ）
 - `/t1` — 中間試験 T1 対策（`#mock` 模擬試験, `#procedure` 当日の手順）
+- `/b8` — B8 二分探索とハッシュ（`#lab` 課題ラボ, `#report` B8.txt 生成, `#binary` 二分探索, `#hash` ハッシュ法）
 - `/b7` — B7 ソーティング（`#lab` 課題ラボ, `#report` B7.txt 生成）
 - `/b6` — B6 リスト処理（`#lab` 課題ラボ, `#report` B6.txt 生成）
 - `/b5` — B5 動的割当て（`#lab` 課題ラボ, `#report` B5.txt 生成）
@@ -151,3 +153,16 @@
 - **T2 中間試験対策** (`t2.js`, `t2-tasks.js`, `tools/gen_t2.py`):
   - `T2-yokoku.pdf` 準拠の厳格採点 (`sizeof` 未使用の `malloc` を 0 点、線形探索による `db_t` 検索を 0 点、メモリリークを不正解) を全模擬試験セットに実装。
   - 課題 (8-4) 先取り用の **`db_t` 二分探索シミュレータ** (整数キー & `strcmp` 文字列キー、線形探索との比較回数対比付き) と境界値バグ (`low < high` vs `low <= high`) 修正シェルドリルを搭載。
+
+## B8 二分探索とハッシュで追加した仕組み
+- **インタプリタ拡張** (`interp.js`, `app.js`):
+  - `#ifdef` / `#ifndef` / `#if` / `#else` / `#endif` / `#undef` と引数付きマクロ (`#define IS_EOL(c) ...`) をプリプロセッサに実装し、配布ヘッダ `iata_db.h` (`__USE_MINI__` 切替) を無改造でコンパイル可能にした。
+  - 翻訳単位ごとの `static` 内部関数 (`fgetss`, `extract_data`, `record_set`)、`fgetc` / `getc` / `feof` / `fputc` / `fgets(FILE*)`、テキスト CSV (`iata_mini.csv`, `iata_data.csv`) の自動 VFS マウント、大型ローカル構造体 (`db_t db;`) の自動大容量領域割当てに対応。
+  - テストケース単位のファイル上書き (`tc.files`) に対応し、ミニ版 (`__USE_MINI__`) とフル版 (`iata_data.csv`) の両方で各課題を自動検証。
+- **B8 直感 → 本質ラボ** (`b8-code.js`):
+  - **30 秒 Essence Map**: データ構造・二分探索・クローズドハッシュ・オープンハッシュの「直感 ⇒ C の骨格」4 枚マップ。
+  - **メモリ構造ラボ (`dbAnatomyLab`)**: `db_t` 配列内の `key[4]` 直置きと `malloc` ヒープ文字列へのポインタ対応、`db_dump` の出力を連動可視化。
+  - **二分探索 vs 線形探索ラボ (`binarySearchLab`)**: `iata_mini.csv` 10 空港で `low` / `mid` / `high` と `strcmp` の正負判定を 1 ステップずつ追跡。
+  - **クローズドハッシュ衝突・巡回シミュレータ (`hashCollisionLab`)**: `db_hash_f` のビットシフト計算と 16 枠テーブルでの衝突・末尾巡回 (`SFO: 14→15→0`)・`NULL` 打ち切りを完全再現 (`test6-exp.txt` と一致)。
+  - **オープンハッシュ vs クローズドハッシュ比較ラボ (`openHashLab`)**: 玉突き衝突 (クラスタリング) と `iata_db2.c` の単方向リスト (チェイン法) を比較。
+  - **2,700 空港 `gcc` ベンチマーク・エクスプローラ (`benchExplorer`)**: `AAC` (1番目)〜`ZYL` (2700番目)・未登録キーに対する 10万回検索の `-O0` / `-O2` 実測時間と比較回数を可視化。

@@ -10,5 +10,5 @@ window.UNIT_INDEX = [
   { id: 'b5', title: '動的割当て', desc: 'malloc と free・sizeof・文字列と構造体の動的割当て・realloc とスタック', ready: true, nTask: 14, nPred: 5 },
   { id: 'b6', title: 'リスト処理', desc: '自己参照構造体・ダミー節点・挿入/探索/削除・計算時間 O(n)・二分探索木', ready: true, nTask: 14, nPred: 5 },
   { id: 'b7', title: 'ソーティング', desc: '単純選択法・単純挿入法・計算時間と -O2・クイックソート O(n log n)・文字列/構造体ソート・バケツ法', ready: true, nTask: 10, nPred: 4 },
-  { id: 'b8', title: 'Coming next', desc: '次回の資料 PDF を送ると, ここに単元が追加されます', ready: false, note: '次回' },
+  { id: 'b8', title: '二分探索とハッシュ', desc: '空港データベース db_t・線形探索 O(n)・二分探索 O(log n)・クローズドハッシュ O(1)・オープンハッシュ', ready: true, nTask: 9, nPred: 4 },
 ];

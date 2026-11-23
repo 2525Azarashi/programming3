@@ -13,6 +13,7 @@ const UNITS: Record<string, { title: string; desc: string; extra?: string[] }> =
   b5: { title: '動的割当て', desc: 'malloc と free・sizeof・文字列と構造体の動的割当て・realloc を使った整数スタック' },
   b6: { title: 'リスト処理', desc: '自己参照構造体とダミー節点・リストの挿入/探索/削除・計算時間の計測・二分探索木', extra: ['code'] },
   b7: { title: 'ソーティング', desc: '単純選択法・単純挿入法・計算時間 O(n²) vs O(n log n)・クイックソート・文字列/構造体ソート・バケツ法', extra: ['code'] },
+  b8: { title: '二分探索とハッシュ', desc: '空港データベース db_t・線形探索 O(n)・二分探索 O(log n)・クローズドハッシュ法 O(1)・オープンハッシュ法', extra: ['code'] },
 }
 
 const shell = (opts: { page: string; unit?: string; title: string; desc: string; extra?: string[] }) => `<!DOCTYPE html>

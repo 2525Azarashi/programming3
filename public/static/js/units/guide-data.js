@@ -256,6 +256,42 @@ window.GUIDE_DATA = {
         },
       ],
     },
+    b8: {
+      title: 'B8 エッセンシャル — 探索の計算量 O(n) → O(log n) → O(1) とハッシュ衝突の本質',
+      lead: '2,700 件の空港データベース iata_data.csv を舞台に、「先頭から探す線形探索」「半分ずつ捨てる二分探索」「キーから部屋番号を直接計算するハッシュ法」の3大アルゴリズムを完全制覇します。',
+      pillars: [
+        {
+          tag: 'データ構造の本質',
+          title: '固定長 key[4] は構造体内に直置き、可変長 data は malloc してポインタで指す',
+          why: '3文字と決まっている空港コード <code class="ic">key[KEY_LEN+1]</code> は構造体の中に直接持たせ、長さがバラバラな空港情報（最大127文字）は <code class="ic">char *data</code> ポインタだけ持たせてヒープ領域にちょうど <code class="ic">strlen(data)+1</code> バイト確保します。そして<b>未使用スロットの目印は <code class="ic">data == NULL</code></b> に統一します。',
+          contrast: [
+            '<code class="ic">db_dump</code> やハッシュ後の <code class="ic">db_delete</code> で <code class="ic">i &lt; db-&gt;n</code> までしか回さない → 空き枠が出力されない / ハッシュ配置された要素が <code class="ic">free</code> 漏れする',
+            '全スロット走査は <code class="ic">0 .. MAX_RECORDS - 1</code> を回し、<code class="ic">db-&gt;record[i].data != NULL</code> で実データの有無を判定する',
+          ],
+          rule: '空スロット判定は data == NULL！ 文字列キーの一致判定は == ではなく必ず strcmp(r.key, key) == 0！',
+        },
+        {
+          tag: '二分探索の本質 (T2 必出)',
+          title: 'キー昇順の配列で中央 mid を見て、毎回候補を半分に斬り捨てる O(log n)',
+          why: 'データがあらかじめキー昇順に並んでいれば、中央 <code class="ic">mid = (low + high) / 2</code> のキーと <code class="ic">strcmp</code> するだけで「前半分には絶対ない」または「後半分には絶対ない」と断定できます。2,700 件でも高々 12 回の比較で決着します。',
+          contrast: [
+            '<code class="ic">while (low &lt; high)</code> にして最後の1要素を見落とす / <code class="ic">low = mid</code> にして無限ループに陥る / 線形探索で代用して T2 で 0 点になる',
+            '<code class="ic">while (low &lt;= high)</code> で回し、<code class="ic">cmp &lt; 0</code> なら <code class="ic">low = mid + 1</code>、<code class="ic">cmp &gt; 0</code> なら <code class="ic">high = mid - 1</code> と <code class="ic">mid</code> 自身を除外して縮める',
+          ],
+          rule: '初期値 low = 0, high = db->n - 1、継続条件 low <= high、更新は必ず mid + 1 と mid - 1！',
+        },
+        {
+          tag: 'ハッシュ法の本質',
+          title: 'h = db_hash_f(key) で部屋番号を直撃！ 衝突したら隣へずらし NULL で止まる',
+          why: 'クローズドハッシュ（線形走査法）では、衝突したら <code class="ic">(h + 1) % MAX_RECORDS</code> で次の空き部屋（<code class="ic">data == NULL</code>）を探して格納します。だから検索時も同じ道順でたどり、<b>途中で <code class="ic">data == NULL</code> にぶつかった瞬間に「これより先には絶対ない」と O(1) で打ち切れます</b>。',
+          contrast: [
+            '<code class="ic">h++</code> だけ書いて配列末尾 <code class="ic">MAX_RECORDS</code> を突き抜ける / 検索で空スロットを飛び越えて全件探してしまう',
+            '1つ進めるたびに <code class="ic">h = (h + 1) % MAX_RECORDS</code>（または <code class="ic">if (h == m) h = 0;</code>）で先頭 0 へ巡回させ、<code class="ic">data == NULL</code> で即終了する',
+          ],
+          rule: '格納は data != NULL の間進めて空枠へ！ 検索は一致で return data、data == NULL で即 return NULL！',
+        },
+      ],
+    },
   },
   phrases: [
     {
@@ -669,6 +705,46 @@ window.GUIDE_DATA = {
       trap: '<code class="ic">tree_delete</code> で先に <code class="ic">free(n)</code> してから <code class="ic">n-&gt;left</code> を呼ぶと解放後アクセスになります。解放だけは必ず「左 → 右 → 最後に自分を free」！',
       when: '二分探索木の挿入・表示・探索・解放（課題6-9, Opt-10, Opt-11）。',
       detect: /tree_insert_uniq|tree_print/,
+    },
+    {
+      id: 'ph-bsearch',
+      unit: 'b8',
+      also: ['t2'],
+      cat: '二分探索',
+      must: true,
+      title: '昇順配列の二分探索ループ（T2 必出の黄金フォーム）',
+      short: 'while (low <= high) { mid = (low + high) / 2; ... }',
+      code: 'low = 0;\nhigh = db->n - 1;\nwhile (low <= high) {\n  mid = (low + high) / 2;\n  cmp = strcmp(db->record[mid].key, key);\n  if (cmp == 0)     { return db->record[mid].data; }\n  else if (cmp < 0) { low = mid + 1; }\n  else              { high = mid - 1; }\n}\nreturn NULL;',
+      parts: [
+        ['low = 0, high = db->n - 1', '探索対象の両端添字（0 番目〜最後の有効要素）'],
+        ['while (low <= high)', '候補が1個（low == high）のときも必ず調べるため <= にする'],
+        ['mid = (low + high) / 2', '今の探索区間の「ど真ん中」の添字を整数除算で求める'],
+        ['cmp < 0 → low = mid + 1', '中央キーの方が辞書順で前 ⇒ 探しているキーは右半分にある'],
+        ['cmp > 0 → high = mid - 1', '中央キーの方が辞書順で後ろ ⇒ 探しているキーは左半分にある'],
+      ],
+      intent: '1回の比較ごとに探索区間を半分に斬り捨てることで、2,700件でも最大12回（$O(\\log n)$）で確実に結果を出します。',
+      trap: '<code class="ic">low &lt; high</code> にすると残り1個の要素を見落とし、<code class="ic">low = mid</code> にすると区間が縮まらず無限ループになります！ また T2 では線形探索を書くと出力が合っても 0 点になります。',
+      when: 'あらかじめキー昇順に整列された配列・構造体データベースからの高速探索（課題8-4, 中間試験T2）。',
+      detect: /mid\s*=\s*\(\s*low\s*\+\s*high\s*\)\s*\/\s*2/,
+    },
+    {
+      id: 'ph-hash-probe',
+      unit: 'b8',
+      also: [],
+      cat: 'ハッシュ法',
+      must: true,
+      title: 'クローズドハッシュ（線形走査法）の巡回プローブと空枠判定',
+      short: 'while (db->record[h].data != NULL) { ... h = (h + 1) % MAX_RECORDS; }',
+      code: 'h = db_hash_f(key);\ncount = 0;\nwhile (db->record[h].data != NULL && count < MAX_RECORDS) {\n  if (strcmp(db->record[h].key, key) == 0) {\n    return db->record[h].data;\n  }\n  h = (h + 1) % MAX_RECORDS;\n  count++;\n}\nreturn NULL;',
+      parts: [
+        ['h = db_hash_f(key)', 'キー文字列から最初の部屋番号（0 〜 MAX_RECORDS-1）を算出'],
+        ['data != NULL', 'そのスロットが「使用中」である限りループを続ける（NULL に当たれば未登録確定！）'],
+        ['(h + 1) % MAX_RECORDS', '衝突していたら1つ右の部屋へ進み、末尾に達したら先頭 0 番へ巡回する'],
+      ],
+      intent: '格納時（<code class="ic">db_hash_load</code>）も検索時（<code class="ic">db_hash_search</code>）もまったく同じ「<code class="ic">h</code> から出発して 1 ずつ右へ巡回」のルールに従うことで、平均 $O(1)$ の超高速検索を実現します。',
+      trap: '単純に <code class="ic">h++</code> だけ書くと、<code class="ic">h == MAX_RECORDS</code> になった瞬間に配列外アクセスを起こします（SFO の 14→15→0 の巡回で発覚！）。',
+      when: 'クローズドハッシュ表への格納と検索（課題8-6(1), 8-6(2), 8-7）。',
+      detect: /db_hash_f\s*\(/,
     },
   ],
   tasks: {
@@ -1644,6 +1720,97 @@ window.GUIDE_DATA = {
       ],
       phrases: ['ph-strcmp', 'ph-nullchar', 'ph-eof'],
       pitfall: '同じ最大の長さの単語が後から来たとき「最初のものを残す」仕様なら <code class="ic">&gt;=</code> ではなく厳密な <code class="ic">&gt;</code> にします。また文字列の保存は <code class="ic">longest = w;</code> ではなく必ず <code class="ic">strcpy(longest, w);</code>！',
+    },
+    /* ==================== B8: 二分探索とハッシュ ==================== */
+    'b8:8-1': {
+      essence: '<code class="ic">db_t</code> の全スロット（<code class="ic">0 .. MAX_RECORDS - 1</code>）を走査し、<b><code class="ic">data != NULL</code> かどうかで使用中スロットと空きスロットを見分けてダンプ出力する</b>課題です。後のハッシュ課題（8-6）でも同じ <code class="ic">db_dump</code> をそのまま再利用します。',
+      steps: [
+        '<code class="ic">for (i = 0; i &lt; MAX_RECORDS; i++)</code> で全枠を順番に調べる（<code class="ic">db-&gt;n</code> ではなく <code class="ic">MAX_RECORDS</code> まで！）',
+        'まず <code class="ic">printf("[%4d]", i);</code> で4桁右詰めの添字を出す',
+        '<code class="ic">db-&gt;record[i].data != NULL</code> のときだけ <code class="ic">printf(" %s %s", db-&gt;record[i].key, db-&gt;record[i].data);</code> を続けて出し、最後に <code class="ic">printf("\\n");</code> で改行する',
+      ],
+      phrases: [],
+      pitfall: '空きスロットで <code class="ic">[  10] </code> のように末尾に余分なスペースを入れてしまうと <code class="ic">test1-exp.txt</code> と diff で不一致になります。スペースは実データがあるときだけ出しましょう！',
+    },
+    'b8:8-2': {
+      essence: '配列の先頭 <code class="ic">i = 0</code> から <code class="ic">db-&gt;n - 1</code> まで順番に <code class="ic">strcmp</code> でキーを照合する<b>線形探索 $O(n)$</b> の基本実装です。',
+      steps: [
+        '<code class="ic">for (i = 0; i &lt; db-&gt;n; i++)</code> で登録済みレコードを先頭から順に調べる',
+        '<code class="ic">strcmp(db-&gt;record[i].key, key) == 0</code> なら見つかったので即座に <code class="ic">return db-&gt;record[i].data;</code>',
+        'ループを最後まで抜けても見つからなければ <code class="ic">return NULL;</code> を返す',
+      ],
+      phrases: ['ph-strcmp'],
+      pitfall: 'C言語で <code class="ic">db-&gt;record[i].key == key</code> と書くと「文字の中身」ではなく「配列の先頭番地」同士を比較してしまい、絶対に一致しません！ 必ず <code class="ic">strcmp(...) == 0</code> を使います。',
+    },
+    'b8:8-3': {
+      essence: '1回の検索は速すぎて <code class="ic">clock()</code> で測れないため、<b>同じ検索を 100,000 回繰り返して合計 CPU 時間を計測し、格納位置（1番目〜2700番目・未登録）による $O(n)$ の比例関係を実証する</b>課題です。',
+      steps: [
+        '<code class="ic">#define NUM_REPEAT 100000</code> を定義する',
+        'キー入力直後に <code class="ic">clk_start = clock();</code> を呼び、<code class="ic">for (i = 0; i &lt; NUM_REPEAT; i++) { data = db_linear_search(&amp;db, key); }</code> で10万回検索する',
+        'ループ直後に <code class="ic">clk_end = clock();</code> を呼び、<code class="ic">printf("cpu = %.6f [sec]\\n", (double)(clk_end - clk_start) / CLOCKS_PER_SEC);</code> で表示する',
+      ],
+      phrases: ['ph-clock'],
+      pitfall: '<code class="ic">printf("FOUND:\\n...");</code> まで10万回ループの中に入れてしまうと、画面出力の時間が測られてしまい探索アルゴリズムの純粋な時間が分かりません！',
+    },
+    'b8:8-4': {
+      essence: '<b>【中間試験 T2 必出】</b> <code class="ic">iata_data.csv</code> がキーの辞書順（昇順）に並んでいる性質を活かし、<b>毎回中央 <code class="ic">mid</code> と比較して候補区間 <code class="ic">[low, high]</code> を半分に絞り込む $O(\\log n)$ の二分探索</b>を実装します。',
+      steps: [
+        '<code class="ic">low = 0; high = db-&gt;n - 1;</code> で初期区間を設定し、<code class="ic">while (low &lt;= high)</code> で回す',
+        '<code class="ic">mid = (low + high) / 2;</code> を計算し、<code class="ic">cmp = strcmp(db-&gt;record[mid].key, key);</code> の符号を見る',
+        '<code class="ic">cmp == 0</code> なら <code class="ic">return db-&gt;record[mid].data;</code>、<code class="ic">cmp &lt; 0</code> なら右半分へ（<code class="ic">low = mid + 1;</code>）、<code class="ic">cmp &gt; 0</code> なら左半分へ（<code class="ic">high = mid - 1;</code>）、抜ければ <code class="ic">return NULL;</code>',
+      ],
+      phrases: ['ph-bsearch', 'ph-strcmp'],
+      pitfall: '<code class="ic">strcmp(a, b)</code> の引数順と不等号の向きに注意！ 第1引数が <code class="ic">record[mid].key</code> のとき、<code class="ic">cmp &lt; 0</code> は「中央の方が小さい ＝ 探すキーはもっと後ろ（<code class="ic">low = mid + 1</code>）」です。',
+    },
+    'b8:8-5': {
+      essence: '課題 (8-3) の呼び出しを <code class="ic">db_binary_search</code> に変えて 10万回計測し、<b>先頭でも末尾でも未登録キーでも比較回数が 11〜12 回（約一定時間）に収まる $O(\\log n)$ の威力</b>を線形探索と比較します。',
+      steps: [
+        '<code class="ic">iata_cpu1.c</code> をコピーして <code class="ic">iata_cpu2.c</code> を作る',
+        '10万回ループ内の呼び出しを <code class="ic">data = db_binary_search(&amp;db, key);</code> に書き換える',
+        '8種のキー（AAC〜ZYL, AAA）の実行時間が格納位置に依存せずほぼ一定になることを確認する',
+      ],
+      phrases: ['ph-bsearch', 'ph-clock'],
+      pitfall: '先頭1番目の <code class="ic">AAC</code> だけは線形探索が「たまたま1回」で見つけるため線形探索の方が速くなります。その理由まで説明できるとレポートの評価がグッと上がります！',
+    },
+    'b8:8-6-1': {
+      essence: 'キーからハッシュ関数 <code class="ic">db_hash_f(key)</code> で添字 <code class="ic">h</code> を直接計算し、<b>すでに埋まっていれば（衝突）空スロット <code class="ic">data == NULL</code> が見つかるまで 1 ずつ右へずらして格納するクローズドハッシュ表</b>を構築します。',
+      steps: [
+        '1行読み取って <code class="ic">extract_data(line, key, data)</code> で分割し、<code class="ic">h = db_hash_f(key);</code> を求める',
+        '<code class="ic">while (db-&gt;record[h].data != NULL)</code> の間、<code class="ic">h = (h + 1) % MAX_RECORDS;</code>（または <code class="ic">h++; if (h == m) h = 0;</code>）で次の枠へ進める',
+        '見つかった空枠に <code class="ic">record_set(&amp;db-&gt;record[h], key, data);</code> で書き込み、<code class="ic">db-&gt;n++;</code> する',
+      ],
+      phrases: ['ph-hash-probe'],
+      pitfall: 'ハッシュ格納では <code class="ic">record[10..15]</code> など <code class="ic">db-&gt;n</code> 番目より後ろにもデータが入ります。<code class="ic">db_delete</code> のループ上限が <code class="ic">db-&gt;n</code> のままだとメモリリークするので、<code class="ic">MAX_RECORDS</code> 全枠で <code class="ic">data != NULL</code> を <code class="ic">free</code> しましょう！',
+    },
+    'b8:8-6-2': {
+      essence: '<code class="ic">db_hash_load</code> と同じ巡回ルールで <code class="ic">h = db_hash_f(key)</code> から探し始め、<b>キーが一致すれば即座に返し、空スロット <code class="ic">data == NULL</code> に当たれば「未登録」と断定して $O(1)$ で終了する</b>検索関数です。',
+      steps: [
+        '<code class="ic">h = db_hash_f(key);</code> からスタートし、最大 <code class="ic">MAX_RECORDS</code> 回まで調べるループを書く',
+        '<code class="ic">db-&gt;record[h].data == NULL</code> ならこれより先には存在しないので <code class="ic">return NULL;</code>',
+        '<code class="ic">strcmp(db-&gt;record[h].key, key) == 0</code> なら <code class="ic">return db-&gt;record[h].data;</code>、違えば <code class="ic">h = (h + 1) % MAX_RECORDS;</code> で隣へ進む',
+      ],
+      phrases: ['ph-hash-probe', 'ph-strcmp'],
+      pitfall: '<code class="ic">data == NULL</code> なのに止めずに全枠探してしまうと、未登録キーのたびに毎回 6,000 枠すべて調べる $O(m)$ の遅い検索になってしまいます！',
+    },
+    'b8:8-7': {
+      essence: '読込を <code class="ic">db_hash_load</code>、探索を <code class="ic">db_hash_search</code> に切り替えて 10万回計測し、<b>線形探索 $O(n)$・二分探索 $O(\\log n)$・ハッシュ法 $O(1)$ の3手法の計算時間と特徴を総合比較する</b>総仕上げ課題です。',
+      steps: [
+        '<code class="ic">db_load(&amp;db);</code> を <code class="ic">db_hash_load(&amp;db);</code> に変更する',
+        '10万回ループ内を <code class="ic">data = db_hash_search(&amp;db, key);</code> に変更する',
+        '衝突がほぼないキー（MVD, SJW, AAA 等）での圧倒的な速さと、クラスタリングが起きる箇所（YFB 付近）の挙動を考察する',
+      ],
+      phrases: ['ph-hash-probe', 'ph-clock'],
+      pitfall: '検索だけを <code class="ic">db_hash_search</code> に変えて読込を <code class="ic">db_load</code>（先頭詰め）のままにすると、ハッシュ番地にデータが入っていないため正しく検索できません！ 必ずペアで変更します。',
+    },
+    'b8:o8-1': {
+      essence: '<b>【オプション課題 8-1・オープンハッシュ法（チェイン法）】</b> 同じハッシュ値 <code class="ic">h</code> に衝突したレコードを隣の部屋に押し出すのではなく、<b>B6 で学んだ自己参照構造体の単方向リスト <code class="ic">record[h].next</code> にぶら下げる</b>実装です。',
+      steps: [
+        '<code class="ic">db_init</code>: 全バケットの <code class="ic">record[i].next = NULL</code>（ダミー頭節点）に初期化する',
+        '<code class="ic">db_hash_load</code>: <code class="ic">malloc(sizeof(record_t))</code> で新節点を作り、<code class="ic">record_set</code> でキーと <code class="ic">data</code> を入れた後、<code class="ic">db-&gt;record[h].next</code> の先頭（または末尾）につなぐ',
+        '<code class="ic">db_hash_search</code> / <code class="ic">db_delete</code>: <code class="ic">p = db-&gt;record[h].next</code> からリストをたどり、削除時は <code class="ic">free(p-&gt;data)</code> と <code class="ic">free(p)</code> の<b>2段階解放</b>を行う',
+      ],
+      phrases: ['ph-hash-probe', 'ph-malloc', 'ph-free'],
+      pitfall: '<code class="ic">db_delete</code> で <code class="ic">free(p)</code> だけを呼んで中の文字列 <code class="ic">free(p-&gt;data)</code> を忘れる（または先に <code class="ic">free(p)</code> してから <code class="ic">p-&gt;next</code> を読む）のが最大の罠です！',
     },
   },
 };

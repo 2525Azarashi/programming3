@@ -113,37 +113,106 @@
   };
   function preprocess(mainName, files) {
     const defines = {};
+    const fnMacros = {};
     const out = [];
     const included = new Set();
-    function expand(tok, depth) {
-      if (tok.ty === 'id' && defines[tok.v] && depth < 20) {
-        for (const t of defines[tok.v]) expand({ ...t, file: tok.file, line: tok.line }, depth + 1);
-      } else if (tok.ty === 'id' && BUILTIN_DEFINES[tok.v] && !defines[tok.v]) {
-        if (tok.v === 'EOF') out.push({ ty: 'p', v: '(', file: tok.file, line: tok.line });
-        for (const t of BUILTIN_DEFINES[tok.v]) out.push({ ...t, file: tok.file, line: tok.line });
-        if (tok.v === 'EOF') out.push({ ty: 'p', v: ')', file: tok.file, line: tok.line });
-      } else out.push(tok);
+    const condStack = [];
+    const isActive = () => condStack.every((c) => c.active);
+    function expandSeq(seq, depth) {
+      const res = [];
+      for (let i = 0; i < seq.length; i++) {
+        const tok = seq[i];
+        if (tok.ty === 'id' && fnMacros[tok.v] && seq[i + 1] && seq[i + 1].ty === 'p' && seq[i + 1].v === '(' && depth < 20) {
+          const mac = fnMacros[tok.v];
+          let j = i + 2, d = 1;
+          const args = [[]];
+          while (j < seq.length && d > 0) {
+            const t2 = seq[j++];
+            if (t2.ty === 'p' && t2.v === '(') { d++; args[args.length - 1].push(t2); }
+            else if (t2.ty === 'p' && t2.v === ')') { d--; if (d > 0) args[args.length - 1].push(t2); }
+            else if (t2.ty === 'p' && t2.v === ',' && d === 1) args.push([]);
+            else args[args.length - 1].push(t2);
+          }
+          const actuals = mac.params.length === 0 && args.length === 1 && args[0].length === 0 ? [] : args;
+          if (actuals.length !== mac.params.length) throw new CError('マクロ ' + tok.v + ' の引数の数が違います', { file: tok.file, line: tok.line });
+          const sub = [];
+          for (const bt of mac.body) {
+            const pi = bt.ty === 'id' ? mac.params.indexOf(bt.v) : -1;
+            if (pi >= 0) {
+              sub.push({ ty: 'p', v: '(', file: tok.file, line: tok.line });
+              for (const at of actuals[pi]) sub.push({ ...at, file: tok.file, line: tok.line });
+              sub.push({ ty: 'p', v: ')', file: tok.file, line: tok.line });
+            } else sub.push({ ...bt, file: tok.file, line: tok.line });
+          }
+          res.push(...expandSeq(sub, depth + 1));
+          i = j - 1;
+        } else if (tok.ty === 'id' && defines[tok.v] && depth < 20) {
+          res.push(...expandSeq(defines[tok.v].map((t) => ({ ...t, file: tok.file, line: tok.line })), depth + 1));
+        } else if (tok.ty === 'id' && BUILTIN_DEFINES[tok.v] && !defines[tok.v]) {
+          if (tok.v === 'EOF') res.push({ ty: 'p', v: '(', file: tok.file, line: tok.line });
+          for (const t of BUILTIN_DEFINES[tok.v]) res.push({ ...t, file: tok.file, line: tok.line });
+          if (tok.v === 'EOF') res.push({ ty: 'p', v: ')', file: tok.file, line: tok.line });
+        } else res.push(tok);
+      }
+      return res;
     }
     function run(name) {
       if (included.has(name)) return;
       included.add(name);
       const src = files[name];
       const toks = tokenize(src, name);
+      const pending = [];
+      const flushPending = () => { if (pending.length) { out.push(...expandSeq(pending.splice(0), 0)); } };
       for (const tk of toks) {
         if (tk.ty === 'dir') {
+          flushPending();
           let m;
-          if ((m = /^include\s*"([^"]+)"/.exec(tk.v))) {
+          if ((m = /^ifdef\s+([A-Za-z_]\w*)/.exec(tk.v))) {
+            const pAct = isActive(), cond = !!(defines[m[1]] || fnMacros[m[1]] || BUILTIN_DEFINES[m[1]]);
+            condStack.push({ parent: pAct, active: pAct && cond, seenTrue: cond });
+          } else if ((m = /^ifndef\s+([A-Za-z_]\w*)/.exec(tk.v))) {
+            const pAct = isActive(), cond = !(defines[m[1]] || fnMacros[m[1]] || BUILTIN_DEFINES[m[1]]);
+            condStack.push({ parent: pAct, active: pAct && cond, seenTrue: cond });
+          } else if (/^else\b/.test(tk.v)) {
+            const top = condStack[condStack.length - 1];
+            if (top) { top.active = top.parent && !top.seenTrue; top.seenTrue = true; }
+          } else if (/^endif\b/.test(tk.v)) {
+            condStack.pop();
+          } else if ((m = /^if\s+(.+)$/.exec(tk.v))) {
+            const pAct = isActive();
+            const exprStr = m[1].trim();
+            let cond = true;
+            if (/^0$/.test(exprStr)) cond = false;
+            else if (/^1$/.test(exprStr)) cond = true;
+            else if ((m = /^(!?)\s*defined\s*\(?\s*([A-Za-z_]\w*)\s*\)?$/.exec(exprStr))) {
+              const defd = !!(defines[m[2]] || fnMacros[m[2]] || BUILTIN_DEFINES[m[2]]);
+              cond = m[1] === '!' ? !defd : defd;
+            }
+            condStack.push({ parent: pAct, active: pAct && cond, seenTrue: cond });
+          } else if (!isActive()) {
+            continue;
+          } else if ((m = /^include\s*"([^"]+)"/.exec(tk.v))) {
             if (files[m[1]] === undefined) throw new CError('#include "' + m[1] + '" — ファイル ' + m[1] + ' が見つかりません', { file: name, line: tk.line });
             run(m[1]);
           } else if (/^include\s*</.test(tk.v)) { /* 標準ヘッダは組込み */ }
-          else if ((m = /^define\s+([A-Za-z_]\w*)\s*(.*)$/.exec(tk.v))) {
-            if (/^\(/.test(tk.v.slice(tk.v.indexOf(m[1]) + m[1].length))) throw new CError('関数形式マクロには対応していません', { file: name, line: tk.line });
+          else if ((m = /^undef\s+([A-Za-z_]\w*)/.exec(tk.v))) {
+            delete defines[m[1]]; delete fnMacros[m[1]];
+          } else if ((m = /^define\s+([A-Za-z_]\w*)\(([^)]*)\)\s*(.*)$/.exec(tk.v))) {
+            const params = m[2].trim() ? m[2].split(',').map((s) => s.trim()) : [];
+            const body = tokenize(m[3].replace(/;\s*$/, ''), name).filter((t) => t.ty !== 'dir');
+            fnMacros[m[1]] = { params, body };
+            delete defines[m[1]];
+          } else if ((m = /^define\s+([A-Za-z_]\w*)\s*(.*)$/.exec(tk.v))) {
             const body = tokenize(m[2].replace(/;\s*$/, ''), name).filter((t) => t.ty !== 'dir');
             defines[m[1]] = body;
-          } else if (/^(ifndef|ifdef|endif|pragma|undef|if|else)/.test(tk.v)) { /* 無視 */ }
+            delete fnMacros[m[1]];
+          } else if (/^pragma\b/.test(tk.v)) { /* 無視 */ }
           else throw new CError('未対応のプリプロセッサ指令: #' + tk.v, { file: name, line: tk.line });
-        } else expand(tk, 0);
+        } else if (isActive()) {
+          pending.push(tk);
+        }
       }
+      flushPending();
     }
     run(mainName);
     out.push({ ty: 'eof', v: '<EOF>', file: mainName, line: 99999 });
@@ -426,11 +495,11 @@
           } while (isP(',') && next());
         }
         eat(')');
-        if (isP(';')) { next(); if (!funcs[d.name]) funcs[d.name] = { name: d.name, ret: d.type, params, body: null, loc: loc(t0) }; continue; }
+        if (isP(';')) { next(); if (!funcs[d.name]) funcs[d.name] = { name: d.name, ret: d.type, params, body: null, isStatic, loc: loc(t0) }; continue; }
         if (!isP('{')) err('関数本体の「{」が必要です');
         const body = block();
         if (funcs[d.name] && funcs[d.name].body) err('関数 ' + d.name + ' が二重に定義されています', t0);
-        funcs[d.name] = { name: d.name, ret: d.type, params, body, loc: loc(t0) };
+        funcs[d.name] = { name: d.name, ret: d.type, params, body, isStatic, loc: loc(t0) };
         continue;
       }
       pos = save;
@@ -478,13 +547,18 @@
     const units = Array.isArray(mainName) ? mainName : [mainName];
     mainName = units[0];
     try {
-      prog = { funcs: {}, globals: [] };
+      prog = { funcs: {}, unitFuncs: {}, globals: [] };
       for (const u of units) {
         const p = parse(preprocess(u, files));
+        prog.unitFuncs[u] = {};
         for (const k in p.funcs) {
           const f = p.funcs[k];
-          if (f.body && prog.funcs[k] && prog.funcs[k].body) throw new CError('関数 ' + k + ' が複数のファイルで定義されています (リンクエラー)', f.loc);
-          if (f.body || !prog.funcs[k]) prog.funcs[k] = f;
+          if (f.isStatic) {
+            if (f.body) prog.unitFuncs[u][k] = f;
+          } else {
+            if (f.body && prog.funcs[k] && prog.funcs[k].body) throw new CError('関数 ' + k + ' が複数のファイルで定義されています (リンクエラー)', f.loc);
+            if (f.body || !prog.funcs[k]) prog.funcs[k] = f;
+          }
         }
         prog.globals.push(...p.globals);
         (p.warnings || []).forEach((w) => { if (!res.warnings.some((x) => x.name === w.name && x.loc.file === w.loc.file)) res.warnings.push(w); });
@@ -510,8 +584,10 @@
     const echoEof = () => { echoTo(stdin.length); if (!eofShown) { eofShown = true; tw('eof', '^D\n'); } };
     const rng = new GlibcRand();
     const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    /* 仮想ファイルシステム (fopen / fread / fwrite 用): opt.vfs = { name: Uint8Array } */
-    const vfs = {}; Object.keys(opt.vfs || {}).forEach((k) => (vfs[k] = opt.vfs[k]));
+    /* 仮想ファイルシステム (fopen / fread / fwrite / fgetc / fgets 用): opt.vfs = { name: Uint8Array | string } */
+    const vfs = {};
+    Object.keys(opt.vfs || {}).forEach((k) => { const v = opt.vfs[k]; vfs[k] = typeof v === 'string' ? Uint8Array.from(utf8(v)) : v; });
+    Object.keys(files || {}).forEach((k) => { if (vfs[k] === undefined && !/\.(c|h|o|exe)$/.test(k) && typeof files[k] === 'string') vfs[k] = Uint8Array.from(utf8(files[k])); });
     const fhs = new Map(); let fhNext = 1;
     const FH_BASE = 0x7f000000;
     const fhOf = (v, l) => { const f = fhs.get(v.v); if (!f) fail('ファイルポインタが不正です (fopen に成功していない / fclose 済み)', l); return f; };
@@ -716,11 +792,16 @@
       }
       const scope = f.scopes[f.scopes.length - 1];
       if (scope.has(d.name)) fail('変数 ' + d.name + ' が二重に宣言されています', d.loc);
-      const al = alignOfT(t); const addr = Math.ceil(f.top / al) * al; f.top = addr + t.size;
-      if (f.top > GLOBAL_BASE) fail('ローカル変数が大きすぎます (このサイトのスタック領域は約 290KB)。大きな配列は static を付けるか, 大域変数にしてください', d.loc);
+      const al = alignOfT(t);
+      let addr, bigLocal = false;
+      if (t.size >= 32768 || f.top + t.size > GLOBAL_BASE) {
+        addr = Math.ceil(btop / 16) * 16; btop = addr + t.size; bigLocal = true;
+      } else {
+        addr = Math.ceil(f.top / al) * al; f.top = addr + t.size;
+      }
       const sym = { addr, t };
       scope.set(d.name, sym);
-      f.vars.push({ name: d.name, addr, t, scopeDepth: f.scopes.length });
+      f.vars.push({ name: d.name, addr, t, scopeDepth: f.scopes.length, bigLocal });
       alloc(addr, t, false);
       if (d.init) initVar(addr, t, d.init);
     }
@@ -1106,9 +1187,24 @@
       },
       free: (a, l) => { if (a.length !== 1) fail('free の引数は 1 つです', l); if (a[0].t.k !== 'ptr' && a[0].v !== 0) fail('free にはポインタ (malloc が返した番地) を渡します', l); hFree(a[0].v, l, 'free'); return { v: 0, t: T.void }; },
       fgets: (a, l) => {
-        const st = a[2]; if (!st || st.stream !== 0) fail('このサイトの fgets は標準入力 (stdin) からの読み込みに対応しています: fgets(s, n, stdin)', l);
+        const st = a[2];
         if (a[0].t.k !== 'ptr' || a[0].t.to.k !== 'char') fail('fgets の第1引数には char 配列を渡します', l);
         const n = a[1].v; if (n <= 1) fail('fgets の第2引数 (最大長) は 2 以上にしてください', l);
+        if (st && fhs.has(st.v)) {
+          const f = fhOf(st, l);
+          if (f.pos >= f.buf.length) { f.eof = true; return { v: 0, t: ptr(T.char) }; }
+          const lim = n - 1;
+          let cnt = 0;
+          while (f.pos < f.buf.length && cnt < lim) {
+            const ch = f.buf[f.pos++];
+            store(a[0].v + cnt, T.char, ch);
+            cnt++;
+            if (ch === 10) break;
+          }
+          store(a[0].v + cnt, T.char, 0);
+          return { v: a[0].v, t: ptr(T.char) };
+        }
+        if (!st || st.stream !== 0) fail('fgets の第3引数には stdin または fopen で開いた FILE ポインタを渡します', l);
         if (inPos >= stdin.length) { echoEof(); return { v: 0, t: ptr(T.char) }; }
         let j = inPos; const lim = n - 1; let s = '';
         while (j < stdin.length && utf8(s).length < lim) { const ch = stdin[j++]; s += ch; if (ch === '\n') break; }
@@ -1122,8 +1218,35 @@
         const name = readStr(a[0].v), mode = readStr(a[1].v);
         if (/r/.test(mode) && !vfs[name]) return { v: 0, t: ptr(T.int) };
         const id = FH_BASE + fhNext++;
-        fhs.set(id, { name, mode, pos: 0, buf: /r/.test(mode) ? vfs[name] : [], w: /[wa]/.test(mode) });
+        fhs.set(id, { name, mode, pos: 0, eof: false, buf: /r/.test(mode) ? vfs[name] : [], w: /[wa]/.test(mode) });
         return { v: id, t: ptr(T.int) };
+      },
+      fgetc: (a, l) => {
+        if (a[0] && a[0].stream === 0) {
+          if (inPos >= stdin.length) { echoEof(); return { v: -1, t: T.int }; }
+          const v = stdin.charCodeAt(inPos++); echoTo(inPos); return { v, t: T.int };
+        }
+        const f = fhOf(a[0], l);
+        if (f.pos >= f.buf.length) { f.eof = true; return { v: -1, t: T.int }; }
+        return { v: f.buf[f.pos++] & 255, t: T.int };
+      },
+      getc: (a, l) => {
+        const f = fhOf(a[0], l);
+        if (f.pos >= f.buf.length) { f.eof = true; return { v: -1, t: T.int }; }
+        return { v: f.buf[f.pos++] & 255, t: T.int };
+      },
+      feof: (a, l) => {
+        if (a[0] && a[0].stream === 0) return { v: inPos >= stdin.length ? 1 : 0, t: T.int };
+        const f = fhOf(a[0], l);
+        return { v: f.eof ? 1 : 0, t: T.int };
+      },
+      fputc: (a, l) => {
+        const ch = a[0].v & 255;
+        if (a[1] && a[1].stream === 1) { wOut(String.fromCharCode(ch)); return { v: ch, t: T.int }; }
+        if (a[1] && a[1].stream === 2) { wErr(String.fromCharCode(ch)); return { v: ch, t: T.int }; }
+        const f = fhOf(a[1], l);
+        if (f.w) f.buf.push(ch);
+        return { v: ch, t: T.int };
       },
       fclose: (a, l) => {
         const f = fhOf(a[0], l);
@@ -1158,10 +1281,12 @@
     };
 
     const funcs = prog.funcs;
+    const unitFuncs = prog.unitFuncs || {};
     function call(e) {
       if (e.f.k !== 'id') fail('関数ポインタには対応していません', e.loc);
       const name = e.f.name;
-      const fn = funcs[name];
+      const curUnit = (e.loc && e.loc.file) || (frames.length && frames[frames.length - 1].unit) || mainName;
+      const fn = (unitFuncs[curUnit] && unitFuncs[curUnit][name]) || funcs[name];
       if (fn && fn.body) {
         if (fn.params.length !== e.args.length) fail('関数 ' + name + ' の引数の数が違います (必要: ' + fn.params.length + ' 個, 渡した数: ' + e.args.length + ' 個)', e.loc);
         const vals = e.args.map((a, i) => {
@@ -1189,7 +1314,7 @@
       if (frames.length > 120) fail('関数呼び出しが深すぎます (再帰が止まっていない?)');
       const prev = frames[frames.length - 1];
       const base = prev ? Math.ceil(prev.top / 20) * 20 + 20 : STACK_BASE;
-      const f = { fn: fn.name, base, top: base, scopes: [new Map()], vars: [], callLoc };
+      const f = { fn: fn.name, unit: fn.loc && fn.loc.file, base, top: base, scopes: [new Map()], vars: [], callLoc };
       frames.push(f);
       fn.params.forEach((p, i) => {
         if (!p.name) return;
@@ -1320,13 +1445,16 @@
   function compile(files, unit) {
     try {
       const p = parse(preprocess(unit, files));
-      const defined = [], declared = [], called = new Set();
-      for (const k in p.funcs) (p.funcs[k].body ? defined : declared).push(k);
+      const defined = [], declared = [], localDefined = new Set(), called = new Set();
+      for (const k in p.funcs) {
+        if (p.funcs[k].isStatic) { if (p.funcs[k].body) localDefined.add(k); }
+        else (p.funcs[k].body ? defined : declared).push(k);
+      }
       const seen = new WeakSet();
       (function walk(o) {
         if (!o || typeof o !== 'object' || seen.has(o)) return;
         seen.add(o);
-        if (o.k === 'call' && o.f && o.f.k === 'id') called.add(o.f.name);
+        if (o.k === 'call' && o.f && o.f.k === 'id' && !localDefined.has(o.f.name)) called.add(o.f.name);
         for (const key in o) if (key !== 'loc' && key !== 't' && key !== 'type') walk(o[key]);
       })(p.funcs);
       return { ok: true, defined, declared, called: [...called], warnings: p.warnings || [] };
@@ -1334,7 +1462,7 @@
       return { ok: false, error: { msg: e.isC ? e.message : '構文の解析に失敗しました: ' + e.message, loc: e.loc } };
     }
   }
-  const BUILTIN_NAMES = ['printf', 'fprintf', 'scanf', 'puts', 'putchar', 'getchar', 'sqrt', 'fabs', 'abs', 'pow', 'floor', 'ceil', 'log', 'exp', 'cos', 'sin', 'fmod', 'round', 'rand', 'srand', 'time', 'clock', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'assert', 'exit', 'fopen', 'fclose', 'fread', 'fwrite', 'malloc', 'calloc', 'realloc', 'free', 'fgets', 'strcat', 'strncmp', 'memset', 'sizeof'];
+  const BUILTIN_NAMES = ['printf', 'fprintf', 'scanf', 'puts', 'putchar', 'getchar', 'sqrt', 'fabs', 'abs', 'pow', 'floor', 'ceil', 'log', 'exp', 'cos', 'sin', 'fmod', 'round', 'rand', 'srand', 'time', 'clock', 'strlen', 'strcpy', 'strncpy', 'strcmp', 'assert', 'exit', 'fopen', 'fclose', 'fread', 'fwrite', 'fgetc', 'getc', 'feof', 'fputc', 'malloc', 'calloc', 'realloc', 'free', 'fgets', 'strcat', 'strncmp', 'memset', 'sizeof'];
 
   global.CLab = { run, compile, BUILTIN_NAMES, typeStr, tokenize, CError, kindLabel };
 })(window);

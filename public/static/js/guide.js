@@ -157,6 +157,8 @@
       [/p\s*=\s*head_p->next\s*;\s*p\s*!=\s*NULL/, 'ph-list-walk'],
       [/p->next\s*!=\s*NULL/, 'ph-list-lookahead'],
       [/tree_print\s*\(\s*n->left\s*\)|tree_insert/, 'ph-tree-rec'],
+      [/mid\s*=\s*\(\s*low\s*\+\s*high\s*\)\s*\/\s*2/, 'ph-bsearch'],
+      [/db_hash_f\s*\(/, 'ph-hash-probe'],
       [/&\s*\w+->\w+/, 'ph-arrow-addr'],
     ];
     for (const [re, id] of rules) if (re.test(s)) return id;
@@ -848,7 +850,7 @@
       placeholder: 'フレーズを検索（例: EOF, stderr, malloc, %lf, ->next, 転置, ポインタ…）',
       'aria-label': 'フレーズ検索',
     });
-    const unitBtns = ['all', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 't1'].map((u) =>
+    const unitBtns = ['all', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b8', 't1', 't2'].map((u) =>
       h('button' + (u === filterU ? '.on' : ''), {
         type: 'button',
         'data-u': u,

@@ -819,7 +819,8 @@
       let allOk = true, outs = [];
       for (let k = 0; k < tests.length; k++) {
         const tc = tests[k];
-        const r = CLab.run(src, unitsOf(), { stdin: tc.stdin || '', maxSnaps: 2 });
+        const tcSrc = tc.files ? Object.assign({}, src, tc.files) : src;
+        const r = CLab.run(tcSrc, tc.link || unitsOf(), { stdin: tc.stdin || '', maxSnaps: 2, vfs: tc.vfs || t.vfs, maxOps: tc.maxOps || t.maxOps });
         outs.push(r);
         if (tests.length > 1) resultHost.appendChild(h('div.c-mute', { style: { marginTop: k ? '10px' : 0 } }, '— テスト ' + (k + 1) + (tc.label ? ' (' + tc.label + ')' : '') + ' —'));
         if (r.error) {

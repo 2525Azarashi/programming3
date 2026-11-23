@@ -501,7 +501,7 @@ int db_find(db_t *db, int key)
       { tag: '課題 (6-4)(6-5)', t: '昇順リストへの重複なし挿入・重複時削除+free', href: '/b6#task-6-5', u: 'b6', tid: '6-5', c: 'peach', mock: '問2' },
       { tag: '課題 (7-2)', t: 'selection_sort — 単純選択法で配列を整列', href: '/b7#task-7-2', u: 'b7', tid: '7-2', c: 'mint', mock: '問3' },
       { tag: '課題 (7-4)', t: 'insertion_sort — 単純挿入法で配列を整列', href: '/b7#task-7-4', u: 'b7', tid: '7-4', c: 'mint', mock: '問3' },
-      { tag: '課題 (8-4)', t: 'db_t の二分探索 — O(log n) (線形探索は 0 点!)', href: '#bsearch', u: null, tid: null, c: 'pink', mock: '問4' },
+      { tag: '課題 (8-4)', t: 'db_t の二分探索 — O(log n) (線形探索は 0 点!)', href: '/b8#task-8-4', u: 'b8', tid: '8-4', c: 'pink', mock: '問4' },
     ];
     return h('div.fmap', items.map((it, k) => {
       const s = it.u ? (store.get('progress:' + it.u, { tasks: {} }).tasks || {})[it.tid] : null;
@@ -558,7 +558,7 @@ int db_find(db_t *db, int key)
       code: '/* 単純選択法 (7-2) */\nfor (k = 0; k <= n - 2; k++) {\n  min = k;\n  for (i = k + 1; i < n; i++) {\n    if (a[i] < a[min]) { min = i; }\n  }\n  tmp = a[k]; a[k] = a[min]; a[min] = tmp;\n}',
     },
     {
-      id: '課題 (8-4)', grp: 'D', title: 'db_t データ構造に対する二分探索関数', href: '#bsearch', files: 'low / high / mid 二分探索',
+      id: '課題 (8-4)', grp: 'D', title: 'db_t データ構造に対する二分探索関数', href: '/b8#task-8-4', files: 'low / high / mid 二分探索',
       ask: 'キーの昇順 (または辞書順) に整列された <code class="ic">db_t</code> (件数 <code class="ic">db-&gt;n</code>、配列 <code class="ic">db-&gt;entry[...]</code>) から、指定キーを<b>二分探索</b>で高速に探し、添字・値・または要素へのポインタを返す。',
       need: ['<code class="ic">low = 0; high = db-&gt;n - 1;</code>', '<code class="ic">while (low &lt;= high)</code> (<b><code class="ic">&lt;=</code></b> が必須!)', '<code class="ic">mid = (low + high) / 2;</code>', '比較結果に応じて <code class="ic">low = mid + 1</code> または <code class="ic">high = mid - 1</code>'],
       steps: ['<code class="ic">low = 0</code>, <code class="ic">high = db-&gt;n - 1</code> で初期化', '<code class="ic">while (low &lt;= high)</code> の先頭で <code class="ic">mid = (low + high) / 2;</code>', '一致なら即 <code class="ic">return</code> (添字 <code class="ic">mid</code> やポインタ <code class="ic">&amp;db-&gt;entry[mid]</code> 等、問題の指定どおり)', '探すキーの方が大きければ右半分 (<code class="ic">low = mid + 1</code>)、小さければ左半分 (<code class="ic">high = mid - 1</code>)', 'ループを抜けたら未発見の返り値 (<code class="ic">-1</code> や <code class="ic">NULL</code>) を返す'],

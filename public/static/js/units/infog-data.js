@@ -392,4 +392,31 @@
         { title: '<b>② 二分探索になっていない (課題 8-4)</b>', color: 'sky', steps: ['<code class="ic">for (i=0; i&lt;n; i++)</code> で先頭から探す → <b>0 点!</b> (線形探索)', '出力の diff が完全一致しても<b>アルゴリズム検査で不正解</b>', '正解: <code class="ic">low, high, mid = (low+high)/2</code> で毎回半分に絞る'], result: 'O(log n) の二分探索ループ必須!' },
       ] } },
   };
+  I.b8 = {
+    intro: { top: { kind: 'stats', tag: 'B8 IN NUMBERS', title: '2,700 空港データベースで体感する探索の数字', items: [
+      { value: 2700, suffix: '件', label: 'フル版 iata_data.csv の空港レコード数', color: 'peach' },
+      { value: 12, suffix: '回', label: '二分探索 O(log n) の最大比較回数 (≈log₂2700)', color: 'sky' },
+      { value: 1, suffix: '回〜', label: 'ハッシュ法 O(1) の理想比較回数 (衝突なし時)', color: 'mint' },
+      { value: 6000, suffix: '枠', label: '衝突を抑えるハッシュ表サイズ MAX_RECORDS', color: 'lav' },
+    ] } },
+    binary: { top: { kind: 'pipeline', tag: 'BINARY SEARCH', title: '二分探索 db_binary_search の 4 ステップ (課題 8-4 · T2 必出!)',
+      steps: [
+        { icon: '0', label: 'low=0, high=n-1', sub: '探索区間を初期化', color: 'lemon' },
+        { icon: '½', label: 'mid=(low+high)/2', sub: '中央の添字を計算', color: 'sky' },
+        { icon: '⚖', label: 'strcmp(r[mid].key, key)', sub: '0 なら発見 return!', color: 'mint' },
+        { icon: '✂', label: '<0 なら low=mid+1', sub: '>0 なら high=mid-1', color: 'pink' },
+      ] } },
+    hash: { top: { kind: 'pipeline', tag: 'CLOSED HASHING', title: 'クローズドハッシュ法 (線形走査法) の格納と探索 (課題 8-6)',
+      steps: [
+        { icon: 'h', label: 'h = db_hash_f(key)', sub: '0..M-1 の部屋番号', color: 'lav' },
+        { icon: '?', label: 'data == NULL ?', sub: '空なら格納 / 検索打ち切り', color: 'mint' },
+        { icon: '≠', label: '衝突したら隣へ', sub: 'h = (h + 1) % M', color: 'peach' },
+        { icon: '↺', label: '末尾 m で 0 に巡回', sub: 'SFO: 14 → 15 → 0!', color: 'sky' },
+      ] } },
+    openhash: { top: { kind: 'compare2', tag: 'CLOSED VS OPEN HASH', title: '衝突解決の 2 大方式 — 配列内でずらすか、リストでぶら下げるか',
+      lanes: [
+        { title: '<b>クローズドハッシュ法</b> (課題 8-6, iata_db.c)', color: 'sky', steps: ['衝突したら同じ配列の <b>h+1, h+2…</b> へずらす', '追加のポインタ領域が不要で配列だけで完結', '混雑すると隣の部屋まで埋まる<b>クラスタリング</b>が起きる'], result: '表サイズ m をデータ数の約 2 倍以上確保!' },
+        { title: '<b>オープンハッシュ法</b> (Opt 8-1, iata_db2.c)', color: 'mint', steps: ['同じハッシュ値 h の要素を<b>単方向リスト</b>でつなぐ', '<code class="ic">record[h]</code> をダミー頭節点にして <code class="ic">record[h].next</code> へ挿入', '他のハッシュ値の部屋を一切侵食しない!'], result: '節点と data の 2 段階 free を忘れずに!' },
+      ] } },
+  };
 })();
